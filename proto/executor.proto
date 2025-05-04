@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package executor;
+
+service CodeExecutor{
+    rpc Execute (ExecuteRequest) returns (ExecuteResponse);
+}
+
+message ExecuteRequest {
+    string language = 1;
+    string code = 2;
+    string stdin = 3;
+}
+
+message ExecuteResponse{
+    string message = 1;
+//     string stdout = 1;
+//   string stderr = 2;
+//   int32 exit_code = 3;
+//   string error = 4; 
+}
