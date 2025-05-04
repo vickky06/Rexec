@@ -1,3 +1,4 @@
+Rexec (Rust + Exec)
 # 🧠 DSA Engine
 
 A high-performance, Rust-based code execution engine designed for evaluating DSA (Data Structures & Algorithms) problems in multiple languages. It executes user-submitted code in isolated Docker containers and communicates via gRPC with a gateway.
