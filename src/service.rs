@@ -2,10 +2,6 @@ use tonic::{Request, Response, Status};
 
 use executor::code_executor_server::CodeExecutor;
 use executor::{ExecuteRequest, ExecuteResponse};
-// Removed invalid macro usage as it is not required for the current implementation.
-// pub mod executor {
-//     tonic::include_proto!("executor");
-// }
 pub mod executor {
     tonic::include_proto!("executor");
 
