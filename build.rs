@@ -16,22 +16,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .file_descriptor_set_path(out_dir.join("executor_descriptor.bin"))
         .compile(&["src/proto/executor.proto"], &["src/proto"])?;
 
-    println!("cargo:rerun-if-changed=proto/executor.proto");
+    println!("cargo:rerun-if-changed=src/proto/executor.proto");
     println!("cargo:rerun-if-changed=proto");
 
     Ok(())
 }
-
-// // filepath: /Users/viveksingh/RUST/DSA-engine/dsa-engine/build.rs
-// fn main() {
-//     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
-
-//     tonic_build::configure()
-//         .build_server(true)
-//         .file_descriptor_set_path(out_dir.join("executor_descriptor.bin"))
-//         .out_dir("src/proto") // Output directory for generated code
-//         .compile(&["src/proto/executor.proto"], &["src/proto"])
-//         .expect("Failed to compile proto files");
-
-    
-// }
