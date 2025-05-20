@@ -88,13 +88,5 @@ pub async fn handle_request(
     println!("Handling request for language: {}", language);
     let code = r#"print("Hello, World!")"#;
     let result = docker_manager::handle_request(language, code).await?;
-    // Build and run the Docker container
-    // let container_name = build_and_run_container(dockerfile_path, language).await?;
-    // print!("Container name: {}", container_name);
-    // // Connect to Docker
-    // let docker = Docker::connect_with_local_defaults()?;
-    // let code = r#"print("Hello, World!")"#;
-    // let result = execute_code_in_container(&docker, &container_name, code).await?;
-
     Ok(result)
 }
