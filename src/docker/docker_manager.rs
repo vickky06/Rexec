@@ -1,5 +1,5 @@
 use bollard::Docker;
-use bollard::container::{Config, CreateContainerOptions, StartContainerOptions};
+use bollard::container::{Config as ContainerConfig, CreateContainerOptions, StartContainerOptions};
 use bollard::exec::{CreateExecOptions, StartExecResults};
 use bollard::image::BuildImageOptions;
 use bollard::models::{HostConfig, PortBinding};
@@ -8,20 +8,25 @@ use std::error::Error;
 use std::fs::File;
 use tar::Builder;
 use tokio::io::AsyncReadExt;
+use crate::config::Config;
 
-pub async fn handle_request(language: &str, code: &str) -> Result<String, Box<dyn Error>> {
+pub async fn handle_request(
+    config: &Config,
+    language: &str, 
+    code: &str
+) -> Result<String, Box<dyn Error>> {
     let docker = Docker::connect_with_local_defaults()?;
 
     // Select the appropriate Dockerfile
     let dockerfile_path = match language {
-        "python" => "./docker/Dockerfile.python",
-        "javascript" => "./docker/Dockerfile.javascript",
-        "java" => "./docker/Dockerfile.java",
+        "python" => &config.dockerfiles.python,
+        "javascript" => &config.dockerfiles.javascript,
+        "java" => &config.dockerfiles.java,
         _ => return Err(format!("Unsupported language: {}", language).into()),
     };
 
     // Build and run the container
-    let container_name = build_and_run_container(&docker, dockerfile_path, language).await?;
+    let container_name = build_and_run_container(config,&docker, dockerfile_path,language).await?;
 
     // Execute the code inside the container
     let result = execute_code_in_container(&docker, &container_name, code).await?;
@@ -30,14 +35,16 @@ pub async fn handle_request(language: &str, code: &str) -> Result<String, Box<dy
 }
 
 pub async fn build_and_run_container(
+    config: &Config,
     docker: &Docker,
     dockerfile_path: &str,
     language: &str,
 ) -> Result<String, Box<dyn Error>> {
     let image_name = format!("{}_executor:latest", language);
     // Create tar archive for build context
-    let tar_path = "./docker/context.tar";
-    let dockerfile_name = create_tar_archive(dockerfile_path, tar_path)?; // This should be a sync function that writes a tarball
+    let tar_path = &config.paths.tar_path;
+    let docker_file_name = &config.constants.dockerfile;
+    let dockerfile_name = create_tar_archive(dockerfile_path, tar_path, docker_file_name)?; 
 println!("Using dockerfile_name: '{}'", dockerfile_name);
     // Use a sync File, not tokio::fs::File, because bollard expects a blocking Read stream
     let mut file = tokio::fs::File::open(tar_path).await?;
@@ -74,7 +81,7 @@ file.read_to_end(&mut contents).await?;
 
     // Create container config
     let container_name = format!("{}_executor_container", language);
-    let config = Config {
+    let config = ContainerConfig {
         image: Some(image_name),
         host_config: Some(HostConfig {
             port_bindings: Some(
@@ -151,16 +158,16 @@ async fn execute_code_in_container(
 }
 
 
-fn create_tar_archive(dockerfile_path: &str, tar_path: &str) -> Result<String, Box<dyn Error>> {
+fn create_tar_archive(dockerfile_path: &str, tar_path: &str, docker_file_name :&String) -> Result<String, Box<dyn Error>> {
     let tar_file = File::create(tar_path)?;
     let mut tar_builder = Builder::new(tar_file);
 
     // The name for the Dockerfile *inside* the tar archive.
     // Docker usually expects "Dockerfile" at the root of the build context.
-    let name_in_tar = "Dockerfile";
-    tar_builder.append_path_with_name(dockerfile_path, name_in_tar)?;
+    // let name_in_tar = docker_file_name;
+    tar_builder.append_path_with_name(dockerfile_path, docker_file_name)?;
     tar_builder.finish()?;
-    println!("Tar archive created at {} containing {} from {}", tar_path, name_in_tar, dockerfile_path);
+    println!("Tar archive created at {} containing {} from {}", tar_path, docker_file_name, dockerfile_path);
 
-    Ok(name_in_tar.to_string()) // Return the name that was actually used in the tar
+    Ok(docker_file_name.to_string()) // Return the name that was actually used in the tar
 }
