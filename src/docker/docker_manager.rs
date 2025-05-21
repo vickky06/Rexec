@@ -1,5 +1,9 @@
+use crate::config::GLOBAL_CONFIG;
 use bollard::Docker;
-use bollard::container::{Config as ContainerConfig, CreateContainerOptions, StartContainerOptions};
+use bollard::container::{
+    Config as ContainerConfig, CreateContainerOptions, StartContainerOptions,
+};
+
 use bollard::exec::{CreateExecOptions, StartExecResults};
 use bollard::image::BuildImageOptions;
 use bollard::models::{HostConfig, PortBinding};
@@ -8,15 +12,13 @@ use std::error::Error;
 use std::fs::File;
 use tar::Builder;
 use tokio::io::AsyncReadExt;
-use crate::config::Config;
 
-pub async fn handle_request(
-    config: &Config,
-    language: &str, 
-    code: &str
-) -> Result<String, Box<dyn Error>> {
+use uuid::Uuid;
+use crate::cleanup_service::{ActivityType, CleanupService};
+
+pub async fn handle_request(language: &str, code: &str) -> Result<String, Box<dyn Error>> {
     let docker = Docker::connect_with_local_defaults()?;
-
+    let config = GLOBAL_CONFIG.get().unwrap();
     // Select the appropriate Dockerfile
     let dockerfile_path = match language {
         "python" => &config.dockerfiles.python,
@@ -26,7 +28,7 @@ pub async fn handle_request(
     };
 
     // Build and run the container
-    let container_name = build_and_run_container(config,&docker, dockerfile_path,language).await?;
+    let container_name = build_and_run_container(&docker, dockerfile_path, language).await?;
 
     // Execute the code inside the container
     let result = execute_code_in_container(&docker, &container_name, code).await?;
@@ -35,22 +37,26 @@ pub async fn handle_request(
 }
 
 pub async fn build_and_run_container(
-    config: &Config,
     docker: &Docker,
     dockerfile_path: &str,
     language: &str,
 ) -> Result<String, Box<dyn Error>> {
-    let image_name = format!("{}_executor:latest", language);
+    println!("Building and running container for language: {}", language);
+    let config = GLOBAL_CONFIG.get().unwrap();
+    let image_name = format!("{}_{}", config.constants.executor_image_name,language);
     // Create tar archive for build context
-    let tar_path = &config.paths.tar_path;
+    
+    let tar_path_base = &config.paths.tar_path; //returns "./docker/context/"
+    // println!("tar_path_base: {}", tar_path_base);
+    let ref tar_path_formatted = format!("{}{}_{}_{}", tar_path_base, Uuid::new_v4(), language, &config.constants.tar_file_name);
     let docker_file_name = &config.constants.dockerfile;
-    let dockerfile_name = create_tar_archive(dockerfile_path, tar_path, docker_file_name)?; 
-println!("Using dockerfile_name: '{}'", dockerfile_name);
+    let dockerfile_name = create_tar_archive(dockerfile_path, &tar_path_formatted, docker_file_name)?;
+    println!("Using dockerfile_name: '{}'", dockerfile_name);
     // Use a sync File, not tokio::fs::File, because bollard expects a blocking Read stream
-    let mut file = tokio::fs::File::open(tar_path).await?;
+    let mut file = tokio::fs::File::open(tar_path_formatted).await?;
 
     let mut contents = Vec::new();
-file.read_to_end(&mut contents).await?;
+    file.read_to_end(&mut contents).await?;
     // Build image options
     let build_options = BuildImageOptions {
         dockerfile: dockerfile_name,
@@ -73,15 +79,36 @@ file.read_to_end(&mut contents).await?;
             Err(e) => {
                 eprintln!("Error during image build: {}", e);
                 return Err(Box::new(e));
-            },
+            }
         }
     }
 
     println!("Docker image '{}' built successfully!", image_name);
 
+    // clear the tar async from tar_path_formatted
+    let activity_to_clear_tar = ActivityType::new(
+        None,
+        None,
+        None,
+        Some(tar_path_formatted.to_string()),
+    );
+    let cleanup_service = CleanupService {};
+    cleanup_service.cleanup(activity_to_clear_tar).await?;
+    println!("Tar file '{}' removed successfully!", tar_path_formatted);
+
     // Create container config
-    let container_name = format!("{}_executor_container", language);
+    
+    let container_name = format!("{}_{}",GLOBAL_CONFIG.get().unwrap().constants.executor_container_name, language);
+    let created_by_tag = GLOBAL_CONFIG
+        .get()
+        .unwrap()
+        .constants
+        .docker_created_by_label
+        .clone();
+    let label: String = GLOBAL_CONFIG.get().unwrap().build.service_name.clone();
+
     let config = ContainerConfig {
+        labels: Some([(created_by_tag, label)].iter().cloned().collect()),
         image: Some(image_name),
         host_config: Some(HostConfig {
             port_bindings: Some(
@@ -157,8 +184,12 @@ async fn execute_code_in_container(
     }
 }
 
-
-fn create_tar_archive(dockerfile_path: &str, tar_path: &str, docker_file_name :&String) -> Result<String, Box<dyn Error>> {
+fn create_tar_archive(
+    dockerfile_path: &str,
+    tar_path: &str,
+    docker_file_name: &String,
+) -> Result<String, Box<dyn Error>> {
+    println!("Creating tar archive for Dockerfile: {}::\n{}", dockerfile_path, tar_path);
     let tar_file = File::create(tar_path)?;
     let mut tar_builder = Builder::new(tar_file);
 
@@ -167,7 +198,10 @@ fn create_tar_archive(dockerfile_path: &str, tar_path: &str, docker_file_name :&
     // let name_in_tar = docker_file_name;
     tar_builder.append_path_with_name(dockerfile_path, docker_file_name)?;
     tar_builder.finish()?;
-    println!("Tar archive created at {} containing {} from {}", tar_path, docker_file_name, dockerfile_path);
+    println!(
+        "Tar archive created at {} containing {} from {}",
+        tar_path, docker_file_name, dockerfile_path
+    );
 
     Ok(docker_file_name.to_string()) // Return the name that was actually used in the tar
 }
