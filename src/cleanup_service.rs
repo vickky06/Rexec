@@ -1,0 +1,118 @@
+use crate::config::GLOBAL_CONFIG;
+use bollard::Docker;
+use bollard::container::RemoveContainerOptions;
+use std::fs;
+use std::path::Path;
+
+#[derive(Debug, Default)]
+
+pub struct ActivityType {
+    pub container: Option<String>,
+    pub image: Option<String>,
+    pub all_tars: Option<String>,
+    pub tar: Option<String>,
+}
+
+impl ActivityType{
+    pub fn new(container: Option<String>, image: Option<String>, all_tars: Option<String>, tar: Option<String>) -> Self {
+        ActivityType {
+            container,
+            image,
+            all_tars,
+            tar,
+        }
+    }
+}
+
+pub struct CleanupService;
+
+impl CleanupService {
+    pub async fn cleanup(&self, activity: ActivityType) -> Result<(), Box<dyn std::error::Error>> {
+        println!("Cleaning up Service Called...");
+        if let Some(_) = activity.container {
+            println!("Cleaning up container...");
+            Self::cleanup_containers().await?;
+        }
+        if let Some(_) = activity.image {
+            println!("Cleaning up image...");
+            // self.cleanup_images().await?;
+        }
+        if let Some(_) = activity.all_tars {
+            println!("Cleaning up all tar...");
+            Self::cleanup_tars().await?;
+        }
+        if let Some(ref tar_path) = activity.tar {
+            println!("Cleaning up tar...");
+            Self::cleanup_single_tar(tar_path).await?;
+        }
+        if activity.container.is_none()
+            && activity.image.is_none()
+            && activity.all_tars.is_none()
+            && activity.tar.is_none()
+        {
+            println!("No cleanup activity specified.");
+        }
+
+        Ok(())
+    }
+
+    async fn cleanup_containers() -> Result<(), Box<dyn std::error::Error>> {
+        let docker = Docker::connect_with_local_defaults()?;
+        let created_by_tag = GLOBAL_CONFIG
+            .get()
+            .unwrap()
+            .constants
+            .docker_created_by_label
+            .clone();
+        let label: String = GLOBAL_CONFIG.get().unwrap().build.service_name.clone();
+        let containers = docker
+            .list_containers(Some(
+                bollard::container::ListContainersOptions::<String>::default(),
+            ))
+            .await?;
+        for container in containers {
+            let id = container.id.clone().unwrap();
+            if let Some(labels) = &container.labels {
+                if labels.get(&created_by_tag) == Some(&label) {
+                    docker
+                        .remove_container(
+                            &id,
+                            Some(RemoveContainerOptions {
+                                force: true,
+                                ..Default::default()
+                            }),
+                        )
+                        .await?;
+                    println!("Removed container: {}", id);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    async fn cleanup_tars() -> Result<(), Box<dyn std::error::Error>> {
+        let tar_path_base = &GLOBAL_CONFIG.get().unwrap().paths.tar_path; //returns "./docker/context/"
+        for entry in fs::read_dir(tar_path_base.as_ref() as &Path)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() {
+                fs::remove_dir_all(&path)?;
+            } else {
+                fs::remove_file(&path)?;
+            }
+        }
+        Ok(())
+    }
+
+    async fn cleanup_single_tar(tar_path: &str) -> Result<(), Box<dyn std::error::Error>> {
+        if Path::new(tar_path).exists() {
+            if let Err(e) = std::fs::remove_file(&tar_path) {
+                eprintln!("Warning: Failed to delete {}: {}", tar_path, e);
+            }
+            println!("Deleted tar file: {}", tar_path);
+        } else {
+            println!("Tar file does not exist: {}", tar_path);
+        }
+        Ok(())
+    }
+}

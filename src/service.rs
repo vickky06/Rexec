@@ -4,9 +4,6 @@ use crate::proto::executor::code_executor_server::CodeExecutor;
 use crate::proto::executor::{ExecuteRequest, ExecuteResponse};
 use crate::docker::docker_manager;
 
-use crate::config::Config;
-
-
 #[derive(Debug, Default)]
 pub struct ExecutorService;
 
@@ -35,12 +32,10 @@ pub async fn handle_request(
     language: &str,
     _code: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    let config = Config::from_file("config.toml");
 
     println!("Handling request for language: {}", language);
     let code = r#"print("Hello, World!")"#;
     let result = docker_manager::handle_request(
-        &config,
         language,
         code).await?;
     Ok(result)
