@@ -1,0 +1,14 @@
+[dockerfiles]
+python = "./docker/Dockerfile.python"
+javascript = "./docker/Dockerfile.javascript"
+java = "./docker/Dockerfile.java"
+
+[paths]
+tar_path = "./docker/context.tar"
+
+[constants]
+dockerfile = "Dockerfile"
+
+[build]
+service_port = 50051
+service_name = "REXEC"
