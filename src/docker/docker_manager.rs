@@ -1,34 +1,74 @@
 use crate::config::GLOBAL_CONFIG;
+use crate::docker::docker_models::DockerSupportedLanguage;
+use crate::session_management_service::SessionManagement;
 use bollard::Docker;
 use bollard::container::{
     Config as ContainerConfig, CreateContainerOptions, StartContainerOptions,
 };
-
 use bollard::exec::{CreateExecOptions, StartExecResults};
 use bollard::image::BuildImageOptions;
 use bollard::models::{HostConfig, PortBinding};
 use futures_util::stream::StreamExt;
 use std::error::Error;
 use std::fs::File;
+use std::str::FromStr;
 use tar::Builder;
 use tokio::io::AsyncReadExt;
 
-use uuid::Uuid;
 use crate::cleanup_service::{ActivityType, CleanupService};
+use uuid::Uuid;
 
-pub async fn handle_request(language: &str, code: &str) -> Result<String, Box<dyn Error>> {
+fn get_docker_instance() -> Result<Docker, Box<dyn Error>> {
     let docker = Docker::connect_with_local_defaults()?;
+    println!("Connected to Docker instance successfully.");
+    Ok(docker)
+}
+
+fn create_tar_archive(
+    dockerfile_path: &str,
+    tar_path: &str,
+    docker_file_name: &String,
+) -> Result<String, Box<dyn Error>> {
+    println!(
+        "Creating tar archive for Dockerfile: {}::\n{}",
+        dockerfile_path, tar_path
+    );
+    let tar_file = File::create(tar_path)?;
+    let mut tar_builder = Builder::new(tar_file);
+
+    // The name for the Dockerfile *inside* the tar archive.
+    // Docker usually expects "Dockerfile" at the root of the build context.
+    // let name_in_tar = docker_file_name;
+    tar_builder.append_path_with_name(dockerfile_path, docker_file_name)?;
+    tar_builder.finish()?;
+    println!(
+        "Tar archive created at {} containing {} from {}",
+        tar_path, docker_file_name, dockerfile_path
+    );
+
+    Ok(docker_file_name.to_string()) // Return the name that was actually used in the tar
+}
+
+pub async fn handle_request(
+    session_id: &str,
+    language: &str,
+    code: &str,
+) -> Result<String, Box<dyn Error>> {
+    let docker = get_docker_instance()?;
+    //Docker::connect_with_local_defaults()?;
     let config = GLOBAL_CONFIG.get().unwrap();
     // Select the appropriate Dockerfile
-    let dockerfile_path = match language {
-        "python" => &config.dockerfiles.python,
-        "javascript" => &config.dockerfiles.javascript,
-        "java" => &config.dockerfiles.java,
+    let dockerfile_path = match DockerSupportedLanguage::from_str(language) {
+        Ok(DockerSupportedLanguage::Python) => &config.dockerfiles.python,
+        Ok(DockerSupportedLanguage::JavaScript) => &config.dockerfiles.javascript,
+        Ok(DockerSupportedLanguage::Java) => &config.dockerfiles.java,
+        // Ok(DockerSupportedLanguage::Go) => &config.dockerfiles.go,
         _ => return Err(format!("Unsupported language: {}", language).into()),
     };
 
     // Build and run the container
-    let container_name = build_and_run_container(&docker, dockerfile_path, language).await?;
+    let container_name =
+        build_and_run_container(session_id, &docker, dockerfile_path, language).await?;
 
     // Execute the code inside the container
     let result = execute_code_in_container(&docker, &container_name, code).await?;
@@ -37,20 +77,31 @@ pub async fn handle_request(language: &str, code: &str) -> Result<String, Box<dy
 }
 
 pub async fn build_and_run_container(
+    session_id: &str,
     docker: &Docker,
     dockerfile_path: &str,
     language: &str,
 ) -> Result<String, Box<dyn Error>> {
     println!("Building and running container for language: {}", language);
     let config = GLOBAL_CONFIG.get().unwrap();
-    let image_name = format!("{}_{}", config.constants.executor_image_name,language);
+    let image_name = format!(
+        "{}_{}_{}",
+        config.constants.executor_image_name, session_id, language
+    );
     // Create tar archive for build context
-    
+
     let tar_path_base = &config.paths.tar_path; //returns "./docker/context/"
     // println!("tar_path_base: {}", tar_path_base);
-    let ref tar_path_formatted = format!("{}{}_{}_{}", tar_path_base, Uuid::new_v4(), language, &config.constants.tar_file_name);
+    let ref tar_path_formatted = format!(
+        "{}{}_{}_{}",
+        tar_path_base,
+        Uuid::new_v4(),
+        language,
+        &config.constants.tar_file_name
+    );
     let docker_file_name = &config.constants.dockerfile;
-    let dockerfile_name = create_tar_archive(dockerfile_path, &tar_path_formatted, docker_file_name)?;
+    let dockerfile_name =
+        create_tar_archive(dockerfile_path, &tar_path_formatted, docker_file_name)?;
     println!("Using dockerfile_name: '{}'", dockerfile_name);
     // Use a sync File, not tokio::fs::File, because bollard expects a blocking Read stream
     let mut file = tokio::fs::File::open(tar_path_formatted).await?;
@@ -86,19 +137,23 @@ pub async fn build_and_run_container(
     println!("Docker image '{}' built successfully!", image_name);
 
     // clear the tar async from tar_path_formatted
-    let activity_to_clear_tar = ActivityType::new(
-        None,
-        None,
-        None,
-        Some(tar_path_formatted.to_string()),
-    );
+    let activity_to_clear_tar =
+        ActivityType::new(None, None, None, Some(tar_path_formatted.to_string()));
     let cleanup_service = CleanupService {};
     cleanup_service.cleanup(activity_to_clear_tar).await?;
     println!("Tar file '{}' removed successfully!", tar_path_formatted);
 
     // Create container config
-    
-    let container_name = format!("{}_{}",GLOBAL_CONFIG.get().unwrap().constants.executor_container_name, language);
+
+    let container_name = format!(
+        "{}_{}",
+        GLOBAL_CONFIG
+            .get()
+            .unwrap()
+            .constants
+            .executor_container_name,
+        language
+    );
     let created_by_tag = GLOBAL_CONFIG
         .get()
         .unwrap()
@@ -109,7 +164,7 @@ pub async fn build_and_run_container(
 
     let config = ContainerConfig {
         labels: Some([(created_by_tag, label)].iter().cloned().collect()),
-        image: Some(image_name),
+        image: Some(image_name.clone()),
         host_config: Some(HostConfig {
             port_bindings: Some(
                 [(
@@ -145,6 +200,39 @@ pub async fn build_and_run_container(
         .await?;
     println!("Container '{}' started successfully!", container_name);
 
+    let session_service = &GLOBAL_CONFIG
+        .get()
+        .expect("Global config not set")
+        .session_management_service;
+    // Store session info
+    let session_service = &GLOBAL_CONFIG
+        .get()
+        .expect("Global config not set")
+        .session_management_service;
+
+    session_service
+        .add_session(
+            session_id.to_string(),
+            language.to_string(),
+            image_name.clone(),
+        )
+        .await
+        .map_err(|e| format!("Failed to save session: {}", e.message()))?;
+    println!(
+        "Session stored successfully for ID '{}', language '{}'",
+        session_id, language
+    );
+    match session_service
+        .get_session_image(session_id, language)
+        .await
+    {
+        Ok(image) => {
+            println!("Session image for {}: {}", session_id, image);
+        }
+        Err(e) => {
+            eprintln!("Error retrieving session image: {:?}", e);
+        }
+    }
     Ok(container_name)
 }
 
@@ -184,24 +272,49 @@ async fn execute_code_in_container(
     }
 }
 
-fn create_tar_archive(
-    dockerfile_path: &str,
-    tar_path: &str,
-    docker_file_name: &String,
+/// Executes code in an existing, already running container.
+/// You can call this function with the container name/id and code to execute.
+///
+/// # Arguments
+/// * `docker` - Reference to the Docker client
+/// * `container_name` - Name or ID of the running container
+/// * `code` - The code to execute inside the container
+///
+/// # Returns
+/// * `Result<String, Box<dyn Error>>` - Output from the code execution or error
+pub async fn execute_code_in_existing_container(
+    // docker: &Docker,
+    container_name: &str,
+    code: &str,
 ) -> Result<String, Box<dyn Error>> {
-    println!("Creating tar archive for Dockerfile: {}::\n{}", dockerfile_path, tar_path);
-    let tar_file = File::create(tar_path)?;
-    let mut tar_builder = Builder::new(tar_file);
+    let docker = get_docker_instance()?;
+    let shell_command = format!("echo '{}' > script.py && python script.py", code);
+    let exec_options = CreateExecOptions {
+        cmd: Some(vec!["sh", "-c", &shell_command]),
+        attach_stdout: Some(true),
+        attach_stderr: Some(true),
+        ..Default::default()
+    };
 
-    // The name for the Dockerfile *inside* the tar archive.
-    // Docker usually expects "Dockerfile" at the root of the build context.
-    // let name_in_tar = docker_file_name;
-    tar_builder.append_path_with_name(dockerfile_path, docker_file_name)?;
-    tar_builder.finish()?;
-    println!(
-        "Tar archive created at {} containing {} from {}",
-        tar_path, docker_file_name, dockerfile_path
-    );
+    let exec = docker.create_exec(container_name, exec_options).await?;
+    let output = docker.start_exec(&exec.id, None).await?;
 
-    Ok(docker_file_name.to_string()) // Return the name that was actually used in the tar
+    match output {
+        StartExecResults::Attached { mut output, .. } => {
+            let mut result = String::new();
+            while let Some(Ok(log)) = output.next().await {
+                match log {
+                    bollard::container::LogOutput::StdOut { message } => {
+                        result.push_str(&String::from_utf8_lossy(&message));
+                    }
+                    bollard::container::LogOutput::StdErr { message } => {
+                        result.push_str(&String::from_utf8_lossy(&message));
+                    }
+                    _ => {}
+                }
+            }
+            Ok(result)
+        }
+        _ => Err("Failed to execute code in existing container".into()),
+    }
 }

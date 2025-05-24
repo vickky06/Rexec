@@ -1,6 +1,7 @@
+use crate::session_management_service::SessionManagementService;
+use once_cell::sync::OnceCell;
 use serde::Deserialize;
 use std::fs;
-use once_cell::sync::OnceCell;
 
 pub static GLOBAL_CONFIG: OnceCell<Config> = OnceCell::new();
 
@@ -38,6 +39,8 @@ pub struct Config {
     pub paths: Paths,
     pub constants: Constants,
     pub build: Build,
+    #[serde(skip)]
+    pub session_management_service: SessionManagementService,
 }
 
 impl Config {

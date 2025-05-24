@@ -13,8 +13,13 @@ pub struct ActivityType {
     pub tar: Option<String>,
 }
 
-impl ActivityType{
-    pub fn new(container: Option<String>, image: Option<String>, all_tars: Option<String>, tar: Option<String>) -> Self {
+impl ActivityType {
+    pub fn new(
+        container: Option<String>,
+        image: Option<String>,
+        all_tars: Option<String>,
+        tar: Option<String>,
+    ) -> Self {
         ActivityType {
             container,
             image,

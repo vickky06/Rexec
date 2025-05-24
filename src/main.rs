@@ -3,6 +3,7 @@ mod config;
 mod docker;
 mod proto;
 mod service;
+mod session_management_service;
 
 use crate::config::{Config, GLOBAL_CONFIG};
 use proto::executor::code_executor_server::CodeExecutorServer;
@@ -18,7 +19,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut config = Config::from_file("config.toml");
 
     let server_pod_id = Uuid::new_v4(); // Replace with actual server pod ID
-
+    config.session_management_service = session_management_service::SessionManagementService::new();
     config.build.service_name = format!("{} {}", config.build.service_name, server_pod_id);
     GLOBAL_CONFIG.set(config).expect("Config already set");
 
@@ -30,15 +31,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .register_encoded_file_descriptor_set(proto::executor::FILE_DESCRIPTOR_SET)
         .build()?;
 
+    let svc = Server::builder()
+        .add_service(CodeExecutorServer::new(service))
+        .add_service(reflection_service);
     println!(
         "Server listening on {} for {} service",
         addr,
         &GLOBAL_CONFIG.get().unwrap().constants.service_name
     );
-
-    let svc = Server::builder()
-        .add_service(CodeExecutorServer::new(service))
-        .add_service(reflection_service);
 
     // Create a shutdown signal future
     let shutdown_signal = async {
@@ -62,7 +62,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Cleanup logic here
     let cleanup_service = CleanupService {};
-    let activity = ActivityType::new(Some("container".to_string()), None, Some("all tars".to_string()), None);
+    let activity = ActivityType::new(
+        Some("container".to_string()),
+        None,
+        Some("all tars".to_string()),
+        None,
+    );
     cleanup_service.cleanup(activity).await?;
 
     println!("Server exited cleanly.");
