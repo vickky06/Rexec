@@ -21,7 +21,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     config.build.service_name = format!("{} {}", config.build.service_name, server_pod_id);
     GLOBAL_CONFIG.set(config).expect("Config already set");
-    println!("Config loaded: {:?}\n\n", GLOBAL_CONFIG.get().unwrap());
 
     let addr = ("[::1]:".to_owned() + &GLOBAL_CONFIG.get().unwrap().build.service_port.to_string())
         .parse()?;
