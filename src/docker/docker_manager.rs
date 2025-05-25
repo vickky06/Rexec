@@ -146,13 +146,14 @@ pub async fn build_and_run_container(
     // Create container config
 
     let container_name = format!(
-        "{}_{}",
+        "{}_{}_{}",
         GLOBAL_CONFIG
             .get()
             .unwrap()
             .constants
             .executor_container_name,
-        language
+        language,
+        session_id
     );
     let created_by_tag = GLOBAL_CONFIG
         .get()
@@ -200,10 +201,6 @@ pub async fn build_and_run_container(
         .await?;
     println!("Container '{}' started successfully!", container_name);
 
-    let session_service = &GLOBAL_CONFIG
-        .get()
-        .expect("Global config not set")
-        .session_management_service;
     // Store session info
     let session_service = &GLOBAL_CONFIG
         .get()
@@ -214,7 +211,7 @@ pub async fn build_and_run_container(
         .add_session(
             session_id.to_string(),
             language.to_string(),
-            image_name.clone(),
+            container_name.clone(),
         )
         .await
         .map_err(|e| format!("Failed to save session: {}", e.message()))?;
@@ -222,6 +219,7 @@ pub async fn build_and_run_container(
         "Session stored successfully for ID '{}', language '{}'",
         session_id, language
     );
+    // FOR TESTING PURPOSES: Retrieve and print session image
     match session_service
         .get_session_image(session_id, language)
         .await

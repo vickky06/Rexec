@@ -38,7 +38,7 @@ impl CodeExecutor for ExecutorService {
     }
 }
 
-pub async fn session_handler(
+pub async fn session_handler_old(
     session_id: &str,
     language: &str,
     _code: &str,
@@ -48,7 +48,7 @@ pub async fn session_handler(
     Ok(result)
 }
 
-pub async fn _session_handler_new(
+pub async fn session_handler(
     session_id: &str,
     language: &str,
     _code: &str,
@@ -75,8 +75,6 @@ pub async fn _session_handler_new(
                 }
             }
 
-            // let result = docker_manager::handle_request(session_id, language, code).await?;
-            // Ok(result)
         }
 
         Err(e) => {
