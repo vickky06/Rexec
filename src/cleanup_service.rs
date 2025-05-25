@@ -3,6 +3,7 @@ use bollard::Docker;
 use bollard::container::RemoveContainerOptions;
 use std::fs;
 use std::path::Path;
+use std::process::Command;
 
 #[derive(Debug, Default)]
 
@@ -57,7 +58,9 @@ impl CleanupService {
         {
             println!("No cleanup activity specified.");
         }
-
+        // Vec::new() for now, moving onwards we can pass ports used by the containers
+        println!("Cleaning up ports...");
+        Self::cleanup_ports(Vec::new()).await;
         Ok(())
     }
 
@@ -119,5 +122,26 @@ impl CleanupService {
             println!("Tar file does not exist: {}", tar_path);
         }
         Ok(())
+    }
+
+    async fn cleanup_ports(ports: Vec<u16>) {
+        let ports_arg = ports
+            .iter()
+            .map(|port| port.to_string())
+            .collect::<Vec<String>>()
+            .join(" ");
+
+        let output = Command::new("./shell_scripts/kill_ports.sh")
+            .arg(ports_arg)
+            .output()
+            .expect("Failed to execute kill_ports.sh");
+
+        if output.status.success() {
+            println!("kill_ports.sh executed successfully.");
+            println!("Output: {}", String::from_utf8_lossy(&output.stdout));
+        } else {
+            eprintln!("kill_ports.sh execution failed.");
+            eprintln!("Error: {}", String::from_utf8_lossy(&output.stderr));
+        }
     }
 }

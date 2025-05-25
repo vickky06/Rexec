@@ -1,10 +1,10 @@
-use crate::config::{self, GLOBAL_CONFIG};
+use crate::config::GLOBAL_CONFIG;
 use crate::docker::docker_manager;
 use crate::proto::executor::code_executor_server::CodeExecutor;
 use crate::proto::executor::{ExecuteRequest, ExecuteResponse};
-use crate::session_management_service::{SessionManagement, SessionManagementService as sms};
+use crate::session_management_service::{SessionManagement};
 use tonic::{Request, Response, Status};
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct ExecutorService;
 
 #[tonic::async_trait]
