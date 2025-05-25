@@ -5,6 +5,12 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
+
+pub const CLEANUP_ACTIVITY_CONTAINER: &str = "container";
+// pub const CLEANUP_ACTIVITY_IMAGE: &str = "image";
+pub const CLEANUP_ACTIVITY_ALL_TARS: &str = "all tars";
+// pub const CLEANUP_ACTIVITY_TAR: &str = "tar";
+
 #[derive(Debug, Default)]
 
 pub struct ActivityType {
@@ -12,6 +18,7 @@ pub struct ActivityType {
     pub image: Option<String>,
     pub all_tars: Option<String>,
     pub tar: Option<String>,
+    pub ports: Option<Vec<u16>>,
 }
 
 impl ActivityType {
@@ -20,12 +27,14 @@ impl ActivityType {
         image: Option<String>,
         all_tars: Option<String>,
         tar: Option<String>,
+        ports: Option<Vec<u16>>,
     ) -> Self {
         ActivityType {
             container,
             image,
             all_tars,
             tar,
+            ports
         }
     }
 }
@@ -51,6 +60,10 @@ impl CleanupService {
             println!("Cleaning up tar...");
             Self::cleanup_single_tar(tar_path).await?;
         }
+        if let Some(ports) = activity.ports {
+            println!("Cleaning up ports...");
+            Self::cleanup_ports(ports).await;
+        }
         if activity.container.is_none()
             && activity.image.is_none()
             && activity.all_tars.is_none()
@@ -58,9 +71,7 @@ impl CleanupService {
         {
             println!("No cleanup activity specified.");
         }
-        // Vec::new() for now, moving onwards we can pass ports used by the containers
-        println!("Cleaning up ports...");
-        Self::cleanup_ports(Vec::new()).await;
+        
         Ok(())
     }
 

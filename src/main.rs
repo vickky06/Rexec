@@ -75,14 +75,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     // This branch runs when Ctrl+C is received
                 }
             }
-
+            let container =  cleanup_service::CLEANUP_ACTIVITY_CONTAINER;
+            let all_tars = cleanup_service::CLEANUP_ACTIVITY_ALL_TARS;
+            println!("Cleaning up resources...");
+            println!("Container: {}", container);
+            println!("All Tars: {}", all_tars);
+            // Perform cleanup operations
             // Cleanup logic here
             let cleanup_service = CleanupService {};
             let activity = ActivityType::new(
-                Some("container".to_string()),
+                Some(container.to_string()),
                 None,
-                Some("all tars".to_string()),
+                Some(all_tars.to_string() ),
                 None,
+                Some(Vec::new()),
             );
             cleanup_service.cleanup(activity).await?;
 
