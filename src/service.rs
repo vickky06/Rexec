@@ -2,7 +2,8 @@ use crate::config::GLOBAL_CONFIG;
 use crate::docker::docker_manager;
 use crate::proto::executor::code_executor_server::CodeExecutor;
 use crate::proto::executor::{ExecuteRequest, ExecuteResponse};
-use crate::session_management_service::{SessionManagement};
+use crate::session_management_service::SessionManagement;
+use crate::validation_service::{ValidRequest, ValidationService};
 use tonic::{Request, Response, Status};
 #[derive(Debug, Default, Clone)]
 pub struct ExecutorService;
@@ -13,19 +14,18 @@ impl CodeExecutor for ExecutorService {
         &self,
         request: Request<ExecuteRequest>,
     ) -> Result<Response<ExecuteResponse>, Status> {
-        // Extract the session_id from metadata before moving request
-        let session_id = request
-            .metadata()
-            .get("session_id")
-            .and_then(|v: &tonic::metadata::MetadataValue<tonic::metadata::Ascii>| v.to_str().ok())
-            .unwrap_or("anonymous")
-            .to_string();
-        // Now move the request
-        let request_data = request.into_inner();
-        println!("Received request: {:?}", request_data);
-        let language = request_data.language.to_lowercase();
-        let code = request_data.code;
-        match session_handler(&session_id, &language, &code).await {
+        let valid_data = match ValidationService::validate_request(&request).await {
+            Ok(data) => data,
+            Err(e) => {
+                eprintln!("Validation error: {:?}", e);
+                return Err(Status::invalid_argument(format!(
+                    "Validation error: {:?}",
+                    e
+                )));
+            }
+        };
+
+        match session_handler(valid_data).await {
             Ok(output) => {
                 println!("Execution Result: {}", output);
                 Ok(Response::new(ExecuteResponse { message: output }))
@@ -38,21 +38,10 @@ impl CodeExecutor for ExecutorService {
     }
 }
 
-pub async fn session_handler_old(
-    session_id: &str,
-    language: &str,
-    _code: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let code = r#"print("Hello, World!")"#;
-    let result = docker_manager::handle_request(session_id, language, code).await?;
-    Ok(result)
-}
-
-pub async fn session_handler(
-    session_id: &str,
-    language: &str,
-    _code: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
+pub async fn session_handler(data: ValidRequest) -> Result<String, Box<dyn std::error::Error>> {
+    let session_id = data.get_session_id();
+    let language = data.get_language();
+    let _code = data.get_code();
     println!("Handling request for language: {}", language);
     let code = r#"print("Hello, World!")"#;
     match GLOBAL_CONFIG
@@ -74,7 +63,6 @@ pub async fn session_handler(
                     Err(e)
                 }
             }
-
         }
 
         Err(e) => {

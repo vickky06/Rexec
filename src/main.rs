@@ -4,6 +4,7 @@ mod docker;
 mod proto;
 mod service;
 mod session_management_service;
+mod validation_service;
 
 use crate::config::{Config, GLOBAL_CONFIG};
 use proto::executor::code_executor_server::CodeExecutorServer;
@@ -75,7 +76,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     // This branch runs when Ctrl+C is received
                 }
             }
-            let container =  cleanup_service::CLEANUP_ACTIVITY_CONTAINER;
+            let container = cleanup_service::CLEANUP_ACTIVITY_CONTAINER;
             let all_tars = cleanup_service::CLEANUP_ACTIVITY_ALL_TARS;
             println!("Cleaning up resources...");
             println!("Container: {}", container);
@@ -86,7 +87,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let activity = ActivityType::new(
                 Some(container.to_string()),
                 None,
-                Some(all_tars.to_string() ),
+                Some(all_tars.to_string()),
                 None,
                 Some(Vec::new()),
             );

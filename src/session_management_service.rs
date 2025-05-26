@@ -1,14 +1,19 @@
-use crate::docker::docker_models::DockerSupportedLanguage;
+use crate::proto::executor::ExecuteRequest;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tonic::Request;
+
+pub const SESSION_ID: &str = "session_id";
+pub const ANONYMOUS: &str = "anonymous";
 
 #[derive(Debug)]
 pub enum SessionError {
     NotFound(String),
     InvalidLanguage(String),
     ExecutionError(String),
+    Unauthenticated(String),
 }
 
 impl SessionError {
@@ -19,6 +24,7 @@ impl SessionError {
                 format!("Invalid language specified: '{}'.", lang)
             }
             SessionError::ExecutionError(msg) => format!("Execution error: {}", msg),
+            SessionError::Unauthenticated(msg) => format!("Unauthenticated: {}", msg),
         }
     }
 }
@@ -65,6 +71,8 @@ pub trait SessionManagement {
         session_id: &str,
         language: &str,
     ) -> Result<String, SessionError>;
+
+    fn get_session_id(&self, request: &Request<ExecuteRequest>) -> Result<String, SessionError>;
 }
 
 #[derive(Clone, Debug, Default)]
@@ -89,9 +97,6 @@ impl SessionManagement for SessionManagementService {
         language: String,
         container_image: String,
     ) -> Result<(), SessionError> {
-        if !DockerSupportedLanguage::is_supported(&language) {
-            return Err(SessionError::InvalidLanguage(language));
-        }
 
         let mut sessions = self.sessions.lock().await;
         let key = SessionKey::new(session_id.clone(), language.clone());
@@ -130,5 +135,21 @@ impl SessionManagement for SessionManagementService {
             Some(val) => Ok(val.image.clone()),
             None => Err(SessionError::NotFound(session_id.to_string())),
         }
+    }
+
+    fn get_session_id(&self, request: &Request<ExecuteRequest>) -> Result<String, SessionError> {
+        let session_id = request
+            .metadata()
+            .get(SESSION_ID)
+            .and_then(|v: &tonic::metadata::MetadataValue<tonic::metadata::Ascii>| v.to_str().ok())
+            .unwrap_or(ANONYMOUS)
+            .to_string();
+
+        if session_id == ANONYMOUS {
+            return Err(SessionError::Unauthenticated(
+                "Session ID is required for execution.".to_string(),
+            ));
+        }
+        Ok(session_id)
     }
 }

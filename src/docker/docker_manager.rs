@@ -138,7 +138,7 @@ pub async fn build_and_run_container(
 
     // clear the tar async from tar_path_formatted
     let activity_to_clear_tar =
-        ActivityType::new(None, None, None, Some(tar_path_formatted.to_string()),None);
+        ActivityType::new(None, None, None, Some(tar_path_formatted.to_string()), None);
     let cleanup_service = CleanupService {};
     cleanup_service.cleanup(activity_to_clear_tar).await?;
     println!("Tar file '{}' removed successfully!", tar_path_formatted);

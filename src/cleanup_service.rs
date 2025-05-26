@@ -5,7 +5,6 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-
 pub const CLEANUP_ACTIVITY_CONTAINER: &str = "container";
 // pub const CLEANUP_ACTIVITY_IMAGE: &str = "image";
 pub const CLEANUP_ACTIVITY_ALL_TARS: &str = "all tars";
@@ -34,7 +33,7 @@ impl ActivityType {
             image,
             all_tars,
             tar,
-            ports
+            ports,
         }
     }
 }
@@ -71,7 +70,7 @@ impl CleanupService {
         {
             println!("No cleanup activity specified.");
         }
-        
+
         Ok(())
     }
 
