@@ -1,4 +1,3 @@
-
 use crate::config::GLOBAL_CONFIG;
 use crate::docker::docker_models::DockerSupportedLanguage;
 use crate::proto::executor::ExecuteRequest;
@@ -71,7 +70,7 @@ impl ValidationService {
             Err(e) => {
                 let error = ValidationError::SessionIdError(format!("{:?}", e));
                 println!("{}", error.to_string());
-                return Err(error)
+                return Err(error);
             }
         };
 
@@ -90,6 +89,7 @@ impl ValidationService {
 
         if code.is_empty() {
             eprint!("{:?}", ValidationError::EmptyCode());
+            return Err(ValidationError::EmptyCode());
         }
 
         return Ok(ValidRequest::new(session_id, code, language));

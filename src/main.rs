@@ -11,7 +11,9 @@ use proto::executor::code_executor_server::CodeExecutorServer;
 use service::ExecutorService;
 
 use cleanup_service::{ActivityType, CleanupService};
+use session_management_service::SessionManagement;
 use tokio::signal;
+use tokio::time::Duration;
 use tonic::transport::Server;
 use tonic_reflection::server::Builder;
 
@@ -30,7 +32,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let command = &args[1];
     println!("Command: {}", command);
 
-    let mut config = Config::from_file("config.toml");
+    let mut config = Config::new();
 
     let server_pod_id = Uuid::new_v4(); // Replace with actual server pod ID
     config.session_management_service = session_management_service::SessionManagementService::new();
@@ -52,6 +54,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 addr,
                 &GLOBAL_CONFIG.get().unwrap().constants.service_name
             );
+
+            let session_management_service = GLOBAL_CONFIG
+                .get()
+                .unwrap()
+                .session_management_service
+                .clone();
+
+            tokio::spawn(async move {
+                let cleanup_interval = Duration::from_secs(
+                    GLOBAL_CONFIG
+                        .get()
+                        .unwrap()
+                        .session_configs
+                        .session_cleanup_interval,
+                );
+                loop {
+                    tokio::time::sleep(cleanup_interval).await;
+                    let _ = session_management_service.cleanup_expired_sessions();
+                    println!("Periodic session cleanup completed.");
+                }
+            });
+
             let svc = Server::builder()
                 .add_service(CodeExecutorServer::new(service))
                 .add_service(reflection_service);

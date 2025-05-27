@@ -24,7 +24,6 @@ impl CodeExecutor for ExecutorService {
                 )));
             }
         };
-
         match session_handler(valid_data).await {
             Ok(output) => {
                 println!("Execution Result: {}", output);
@@ -41,9 +40,8 @@ impl CodeExecutor for ExecutorService {
 pub async fn session_handler(data: ValidRequest) -> Result<String, Box<dyn std::error::Error>> {
     let session_id = data.get_session_id();
     let language = data.get_language();
-    let _code = data.get_code();
+    let code = data.get_code();
     println!("Handling request for language: {}", language);
-    let code = r#"print("Hello, World!")"#;
     match GLOBAL_CONFIG
         .get()
         .unwrap()
@@ -66,7 +64,7 @@ pub async fn session_handler(data: ValidRequest) -> Result<String, Box<dyn std::
         }
 
         Err(e) => {
-            eprintln!("Error retrieving session image: {:?}", e);
+            eprintln!("image not found {:?}", e);
             let result = docker_manager::handle_request(session_id, language, code).await?;
             Ok(result)
         }
