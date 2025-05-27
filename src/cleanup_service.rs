@@ -3,6 +3,12 @@ use bollard::Docker;
 use bollard::container::RemoveContainerOptions;
 use std::fs;
 use std::path::Path;
+use std::process::Command;
+
+pub const CLEANUP_ACTIVITY_CONTAINER: &str = "container";
+// pub const CLEANUP_ACTIVITY_IMAGE: &str = "image";
+pub const CLEANUP_ACTIVITY_ALL_TARS: &str = "all tars";
+// pub const CLEANUP_ACTIVITY_TAR: &str = "tar";
 
 #[derive(Debug, Default)]
 
@@ -11,15 +17,23 @@ pub struct ActivityType {
     pub image: Option<String>,
     pub all_tars: Option<String>,
     pub tar: Option<String>,
+    pub ports: Option<Vec<u16>>,
 }
 
-impl ActivityType{
-    pub fn new(container: Option<String>, image: Option<String>, all_tars: Option<String>, tar: Option<String>) -> Self {
+impl ActivityType {
+    pub fn new(
+        container: Option<String>,
+        image: Option<String>,
+        all_tars: Option<String>,
+        tar: Option<String>,
+        ports: Option<Vec<u16>>,
+    ) -> Self {
         ActivityType {
             container,
             image,
             all_tars,
             tar,
+            ports,
         }
     }
 }
@@ -44,6 +58,10 @@ impl CleanupService {
         if let Some(ref tar_path) = activity.tar {
             println!("Cleaning up tar...");
             Self::cleanup_single_tar(tar_path).await?;
+        }
+        if let Some(ports) = activity.ports {
+            println!("Cleaning up ports...");
+            Self::cleanup_ports(ports).await;
         }
         if activity.container.is_none()
             && activity.image.is_none()
@@ -114,5 +132,26 @@ impl CleanupService {
             println!("Tar file does not exist: {}", tar_path);
         }
         Ok(())
+    }
+
+    async fn cleanup_ports(ports: Vec<u16>) {
+        let ports_arg = ports
+            .iter()
+            .map(|port| port.to_string())
+            .collect::<Vec<String>>()
+            .join(" ");
+
+        let output = Command::new("./shell_scripts/kill_ports.sh")
+            .arg(ports_arg)
+            .output()
+            .expect("Failed to execute kill_ports.sh");
+
+        if output.status.success() {
+            println!("kill_ports.sh executed successfully.");
+            println!("Output: {}", String::from_utf8_lossy(&output.stdout));
+        } else {
+            eprintln!("kill_ports.sh execution failed.");
+            eprintln!("Error: {}", String::from_utf8_lossy(&output.stderr));
+        }
     }
 }
