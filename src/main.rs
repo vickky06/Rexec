@@ -4,7 +4,9 @@ mod docker;
 mod proto;
 mod service;
 mod session_management_service;
+mod utils;
 mod validation_service;
+mod language_executor;
 
 use crate::config::{Config, GLOBAL_CONFIG};
 use proto::executor::code_executor_server::CodeExecutorServer;
@@ -70,6 +72,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .session_cleanup_interval,
                 );
                 loop {
+                    if session_management_service.get_last_cleanup().await + cleanup_interval
+                        <= std::time::Instant::now()
+                    {
+                        println!("Skipping cleanup, last cleanup was recent.");
+                        tokio::time::sleep(cleanup_interval).await;
+                        continue;
+                    }
                     tokio::time::sleep(cleanup_interval).await;
                     let _ = session_management_service.cleanup_expired_sessions();
                     println!("Periodic session cleanup completed.");
@@ -133,6 +142,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    println!("Server running successfully.");
+   
     Ok(())
 }
