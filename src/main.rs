@@ -7,18 +7,20 @@ mod session_management_service;
 mod utils;
 mod validation_service;
 mod language_executor;
+mod websocket_server;
 
 use crate::config::{Config, GLOBAL_CONFIG};
 use proto::executor::code_executor_server::CodeExecutorServer;
 use service::ExecutorService;
-
 use cleanup_service::{ActivityType, CleanupService};
 use session_management_service::SessionManagement;
+use websocket_server::run_websocket_server;
+
+
 use tokio::signal;
 use tokio::time::Duration;
 use tonic::transport::Server;
 use tonic_reflection::server::Builder;
-
 use std::env;
 use uuid::Uuid;
 
@@ -41,8 +43,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     config.build.service_name = format!("{} {}", config.build.service_name, server_pod_id);
     GLOBAL_CONFIG.set(config).expect("Config already set");
 
-    let addr = ("[::1]:".to_owned() + &GLOBAL_CONFIG.get().unwrap().build.service_port.to_string())
+    let grpc_addr = ("[::1]:".to_owned() + &GLOBAL_CONFIG.get().unwrap().build.service_port.to_string())
         .parse()?;
+
+    // let websocket_addr = "[::1]:".to_owned() + &GLOBAL_CONFIG.get().unwrap().build.web_socket_port.to_string();
+
     let service = ExecutorService::default();
 
     let reflection_service = Builder::configure()
@@ -53,7 +58,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         cmd if cmd.contains("run") => {
             println!(
                 "Server listening on {} for {} service",
-                addr,
+                grpc_addr,
                 &GLOBAL_CONFIG.get().unwrap().constants.service_name
             );
 
@@ -85,9 +90,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             });
 
-            let svc = Server::builder()
-                .add_service(CodeExecutorServer::new(service))
-                .add_service(reflection_service);
+            
 
             // Create a shutdown signal future
             let shutdown_signal = async {
@@ -97,9 +100,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("Shutdown signal received. Cleaning up...");
             };
 
+            let svc = Server::builder()
+                .add_service(CodeExecutorServer::new(service))
+                .add_service(reflection_service);
             // Run the server and listen for shutdown signal
             tokio::select! {
-                res = svc.serve(addr) => {
+                res = svc.serve(grpc_addr) => {
                     if let Err(e) = res {
                         eprintln!("Server error: {}", e);
                         return Ok(());

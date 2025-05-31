@@ -18,6 +18,7 @@ tar_file_name = "context.tar"
 service_port = 50051
 grpc_ui_port = 50052
 service_name = "REXEC"
+# web_socket_port = 50053
 
 [session_configs]
 session_timeout = 3600
