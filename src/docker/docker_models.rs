@@ -19,9 +19,21 @@ impl FromStr for DockerSupportedLanguage {
             _ => Err(()),
         }
     }
+    
 }
 impl DockerSupportedLanguage {
-    pub fn is_supported(lang: &str) -> bool {
-        DockerSupportedLanguage::from_str(lang).is_ok()
+    
+    pub fn is_supported(lang: &str) -> Option<DockerSupportedLanguage> {
+        DockerSupportedLanguage::from_str(lang).ok()
+    }
+    
+    pub fn to_string(language:&DockerSupportedLanguage) -> String {
+        match language {
+            DockerSupportedLanguage::Python => "python".to_string(),
+            DockerSupportedLanguage::JavaScript => "javascript".to_string(),
+            DockerSupportedLanguage::Java => "java".to_string(),
+            // DockerSupportedLanguage::Go => "go".to_string(),
+            // _ => "unknown".to_string(),
+        }
     }
 }

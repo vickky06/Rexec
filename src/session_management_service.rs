@@ -113,6 +113,15 @@ impl SessionManagementService {
             last_cleanup: Arc::new(Mutex::new(Instant::now())),
         }
     }
+
+    pub async fn set_last_cleanup(&self, time: Instant) {
+        let mut last_cleanup = self.last_cleanup.lock().await;
+        *last_cleanup = time;
+    }
+    pub async fn get_last_cleanup(&self) -> Instant {
+        let last_cleanup = self.last_cleanup.lock().await;
+        *last_cleanup
+    }
 }
 
 impl Default for SessionManagementService {
@@ -186,6 +195,11 @@ impl SessionManagement for SessionManagementService {
         if sessions.remove(&key).is_none() {
             return Err(SessionError::NotFound(key.to_string()));
         }
+
+        let svc = self.clone();
+        tokio::spawn(async move {
+            svc.set_last_cleanup(Instant::now()).await;
+        });
 
         Ok(())
     }
