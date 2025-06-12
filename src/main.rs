@@ -1,27 +1,28 @@
 mod cleanup_service;
 mod config;
 mod docker;
+mod language_executor;
+mod ports_service;
 mod proto;
 mod service;
 mod session_management_service;
 mod utils;
 mod validation_service;
-mod language_executor;
 mod websocket_server;
 
 use crate::config::{Config, GLOBAL_CONFIG};
+use cleanup_service::{ActivityType, CleanupService};
 use proto::executor::code_executor_server::CodeExecutorServer;
 use service::ExecutorService;
-use cleanup_service::{ActivityType, CleanupService};
 use session_management_service::SessionManagement;
 use websocket_server::run_websocket_server;
 
-
+use std::env;
+use std::net::SocketAddr;
 use tokio::signal;
 use tokio::time::Duration;
 use tonic::transport::Server;
 use tonic_reflection::server::Builder;
-use std::env;
 use uuid::Uuid;
 
 #[tokio::main]
@@ -39,14 +40,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut config = Config::new();
 
     let server_pod_id = Uuid::new_v4(); // Replace with actual server pod ID
-    config.session_management_service = session_management_service::SessionManagementService::new();
+    config.session_management_service =
+        session_management_service::SessionManagementService::default(); // second call
     config.build.service_name = format!("{} {}", config.build.service_name, server_pod_id);
     GLOBAL_CONFIG.set(config).expect("Config already set");
+    let ports_service = ports_service::PortsService::new();
+    let address = ports_service.get_grpc_server_address();
+    println!("gRPC server address: {}", address); // Add this line
+    let grpc_addr: SocketAddr = address
+        .parse()
+        .expect("Failed to parse gRPC server address");
 
-    let grpc_addr = ("[::1]:".to_owned() + &GLOBAL_CONFIG.get().unwrap().build.service_port.to_string())
-        .parse()?;
-
-    // let websocket_addr = "[::1]:".to_owned() + &GLOBAL_CONFIG.get().unwrap().build.web_socket_port.to_string();
+    let websocket_addr = ports_service.get_websocket_address();
 
     let service = ExecutorService::default();
 
@@ -54,10 +59,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .register_encoded_file_descriptor_set(proto::executor::FILE_DESCRIPTOR_SET)
         .build()?;
 
+    let ws_handle = tokio::spawn(async move {
+        if let Err(e) = run_websocket_server(&websocket_addr).await {
+            eprintln!("WebSocket server error: {}", e);
+        }
+    });
+
     match command.as_str() {
         cmd if cmd.contains("run") => {
             println!(
-                "Server listening on {} for {} service",
+                "Initiating port {} for {} service",
                 grpc_addr,
                 &GLOBAL_CONFIG.get().unwrap().constants.service_name
             );
@@ -90,8 +101,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             });
 
-            
-
             // Create a shutdown signal future
             let shutdown_signal = async {
                 signal::ctrl_c()
@@ -100,21 +109,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("Shutdown signal received. Cleaning up...");
             };
 
-            let svc = Server::builder()
+            let grpc_server = Server::builder()
                 .add_service(CodeExecutorServer::new(service))
-                .add_service(reflection_service);
+                .add_service(reflection_service)
+                .serve_with_shutdown(grpc_addr, shutdown_signal);
             // Run the server and listen for shutdown signal
             tokio::select! {
-                res = svc.serve(grpc_addr) => {
-                    if let Err(e) = res {
-                        eprintln!("Server error: {}", e);
-                        return Ok(());
-                    }
-                }
-                _ = shutdown_signal => {
-                    // This branch runs when Ctrl+C is received
-                }
+                     _ = grpc_server => {
+                println!("gRPC server exited");
             }
+            _ = ws_handle => {
+                println!("WebSocket server exited");
+            }
+                }
             let container = cleanup_service::CLEANUP_ACTIVITY_CONTAINER;
             let all_tars = cleanup_service::CLEANUP_ACTIVITY_ALL_TARS;
             println!("Cleaning up resources...");
@@ -128,7 +135,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 None,
                 Some(all_tars.to_string()),
                 None,
-                Some(Vec::new()),
+                Some(ports_service.get_all_ports()),
             );
             cleanup_service.cleanup(activity).await?;
 
@@ -137,10 +144,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         cmd if cmd.contains("grpcui") => {
             println!(
                 "GRPC server starting on {}",
-                "127.0.0.1:".to_owned()
-                    + &GLOBAL_CONFIG.get().unwrap().build.grpc_ui_port.to_string()
+                ports_service.get_grpc_server_address()
             );
-            // Add any additional logic for grpcui mode here
         }
         _ => {
             eprintln!("Unknown command: {}", command);
@@ -148,6 +153,5 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-   
     Ok(())
 }

@@ -11,6 +11,10 @@ use tonic::Request;
 pub const SESSION_ID: &str = "session_id";
 pub const ANONYMOUS: &str = "anonymous";
 
+use once_cell::sync::OnceCell;
+
+static SINGLETON_SESSION_MANAGEMENT_SERVICE: OnceCell<SessionManagementService> = OnceCell::new();
+
 #[derive(Debug)]
 pub enum SessionError {
     NotFound(String),
@@ -125,8 +129,17 @@ impl SessionManagementService {
 }
 
 impl Default for SessionManagementService {
+    //first call
     fn default() -> Self {
-        SessionManagementService::new()
+        if SINGLETON_SESSION_MANAGEMENT_SERVICE.get().is_some() {
+            println!("Returning existing SessionManagementService instance");
+            return SINGLETON_SESSION_MANAGEMENT_SERVICE.get().unwrap().clone();
+        }
+        println!("Creating default SessionManagementService");
+        SINGLETON_SESSION_MANAGEMENT_SERVICE
+            .set(SessionManagementService::new())
+            .ok();
+        return SINGLETON_SESSION_MANAGEMENT_SERVICE.get().unwrap().clone();
     }
 }
 

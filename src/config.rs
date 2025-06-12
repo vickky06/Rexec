@@ -34,7 +34,8 @@ pub struct Build {
     pub service_port: i32,
     pub service_name: String,
     pub grpc_ui_port: i32,
-    // pub web_socket_port: i32,
+    pub web_socket_port: i32,
+    pub host: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]

@@ -1,11 +1,16 @@
 // websocket_server.rs
 
+use futures_util::{SinkExt, StreamExt};
 use tokio::net::TcpListener;
 use tokio_tungstenite::accept_async;
-use futures_util::{StreamExt, SinkExt};
 
-pub async fn run_websocket_server(addr: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let listener = TcpListener::bind(addr).await?;
+pub async fn run_websocket_server(
+    addr: &str,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    println!("Starting WebSocket server on {}", addr);
+    let listener = TcpListener::bind(addr)
+        .await
+        .expect("Failed to bind to address ");
     println!("WebSocket server listening on {}", addr);
 
     while let Ok((stream, _)) = listener.accept().await {
@@ -21,7 +26,9 @@ pub async fn run_websocket_server(addr: &str) -> Result<(), Box<dyn std::error::
 
                                 // Echo the message back (placeholder for syntax validation)
                                 text.push_str(" (echoed)");
-                                if let Err(e) = websocket.send(tungstenite::Message::Text(text)).await {
+                                if let Err(e) =
+                                    websocket.send(tungstenite::Message::Text(text)).await
+                                {
                                     eprintln!("WebSocket send error: {}", e);
                                     break;
                                 }

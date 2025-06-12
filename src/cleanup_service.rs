@@ -17,7 +17,7 @@ pub struct ActivityType {
     pub image: Option<String>,
     pub all_tars: Option<String>,
     pub tar: Option<String>,
-    pub ports: Option<Vec<u16>>,
+    pub ports: Option<Vec<i32>>,
 }
 
 impl ActivityType {
@@ -26,7 +26,7 @@ impl ActivityType {
         image: Option<String>,
         all_tars: Option<String>,
         tar: Option<String>,
-        ports: Option<Vec<u16>>,
+        ports: Option<Vec<i32>>,
     ) -> Self {
         ActivityType {
             container,
@@ -60,7 +60,7 @@ impl CleanupService {
             Self::cleanup_single_tar(tar_path).await?;
         }
         if let Some(ports) = activity.ports {
-            println!("Cleaning up ports...");
+            println!("Cleaning up ports...{:?}", ports);
             Self::cleanup_ports(ports).await;
         }
         if activity.container.is_none()
@@ -134,7 +134,7 @@ impl CleanupService {
         Ok(())
     }
 
-    async fn cleanup_ports(ports: Vec<u16>) {
+    async fn cleanup_ports(ports: Vec<i32>) {
         let ports_arg = ports
             .iter()
             .map(|port| port.to_string())
@@ -153,5 +153,7 @@ impl CleanupService {
             eprintln!("kill_ports.sh execution failed.");
             eprintln!("Error: {}", String::from_utf8_lossy(&output.stderr));
         }
+
+        println!("Ports cleaned up: {:?}", ports);
     }
 }

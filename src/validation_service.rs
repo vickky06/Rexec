@@ -2,9 +2,9 @@ use crate::config::GLOBAL_CONFIG;
 use crate::docker::docker_models::DockerSupportedLanguage;
 use crate::proto::executor::ExecuteRequest;
 use crate::session_management_service::{SessionError, SessionManagement};
-use tonic::Request;
-use std::fmt;
 use std::error::Error;
+use std::fmt;
+use tonic::Request;
 
 #[derive(Debug)]
 pub enum ValidationError {
@@ -40,7 +40,6 @@ impl ValidRequest {
         &self.language
     }
 }
-
 
 impl fmt::Display for ValidationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -92,12 +91,15 @@ impl ValidationService {
         if language.is_empty() {
             return Err(ValidationError::EmptyLanguage());
         }
-        let docker_language =DockerSupportedLanguage::is_supported(&language);
+        let docker_language = DockerSupportedLanguage::is_supported(&language);
 
         if docker_language.is_none() {
             return Err(ValidationError::InvalidLanguage(format!("{:?}", language)));
         } else {
-            println!("Language is valid: {}", DockerSupportedLanguage::to_string(&docker_language.unwrap()));
+            println!(
+                "Language is valid: {}",
+                DockerSupportedLanguage::to_string(&docker_language.unwrap())
+            );
         }
 
         if code.is_empty() {
