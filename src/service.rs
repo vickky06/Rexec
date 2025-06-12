@@ -45,7 +45,7 @@ pub async fn session_handler(data: ValidRequest) -> Result<String, Box<dyn std::
     let language = data.get_language();
     let code = data.get_code();
     println!("Handling request for language: {}", language);
-    
+
     match GLOBAL_CONFIG
         .get()
         .unwrap()
@@ -55,14 +55,16 @@ pub async fn session_handler(data: ValidRequest) -> Result<String, Box<dyn std::
     {
         Ok(image) => {
             println!("Session image for {}: {}", session_id, image);
-            let language = match DockerSupportedLanguage::from_str(language){
+            let language = match DockerSupportedLanguage::from_str(language) {
                 Ok(lang) => lang,
                 Err(_) => {
                     eprintln!("Unsupported language: {}", language);
-                    return Err(Box::new(ValidationError::InvalidLanguage(language.to_string())));
+                    return Err(Box::new(ValidationError::InvalidLanguage(
+                        language.to_string(),
+                    )));
                 }
             };
-            match docker_manager::execute_code_in_existing_container(&image,language, code).await {
+            match docker_manager::execute_code_in_existing_container(&image, language, code).await {
                 Ok(result) => {
                     println!("Execution Result: {}", result);
                     Ok(result)
