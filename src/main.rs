@@ -1,19 +1,24 @@
 mod cleanup_service;
-mod config;
+mod config_service;
 mod docker;
 mod language_executor;
 mod ports_service;
 mod proto;
-mod service;
+mod executor_service;
 mod session_management_service;
 mod utils;
 mod validation_service;
 mod websocket_server;
+mod models;
 
-use crate::config::{Config, GLOBAL_CONFIG};
-use cleanup_service::{ActivityType, CleanupService};
+use models::{
+    cleanup_models::{ActivityType, CleanupService},
+    config_models::Config,
+    executor_models::ExecutorService,
+    session_management_models::SessionManagementService as ssm,
+};
+use crate::config_service::{ GLOBAL_CONFIG};
 use proto::executor::code_executor_server::CodeExecutorServer;
-use service::ExecutorService;
 use session_management_service::SessionManagement;
 use websocket_server::run_websocket_server;
 
@@ -24,6 +29,7 @@ use tokio::time::Duration;
 use tonic::transport::Server;
 use tonic_reflection::server::Builder;
 use uuid::Uuid;
+use crate::models::port_models::PortsService as ps;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -40,11 +46,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut config = Config::new();
 
     let server_pod_id = Uuid::new_v4(); // Replace with actual server pod ID
-    config.session_management_service =
-        session_management_service::SessionManagementService::default(); // second call
+    config.session_management_service =ssm::default();
+        // session_management_service::SessionManagementService::default(); // second call
     config.build.service_name = format!("{} {}", config.build.service_name, server_pod_id);
     GLOBAL_CONFIG.set(config).expect("Config already set");
-    let ports_service = ports_service::PortsService::new();
+    let ports_service = ps::new(); //ports_service::PortsService::new();
     let address = ports_service.get_grpc_server_address();
     println!("gRPC server address: {}", address); // Add this line
     let grpc_addr: SocketAddr = address

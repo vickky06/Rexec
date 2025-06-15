@@ -8,18 +8,15 @@ use bollard::models::{HostConfig, PortBinding};
 use futures_util::stream::StreamExt;
 use std::error::Error;
 use uuid::Uuid;
-// use std::fs::File;
 use std::str::FromStr;
-// use tar::Builder;
 use tokio::io::AsyncReadExt;
 
-use crate::cleanup_service::{ActivityType, CleanupService};
-use crate::config::GLOBAL_CONFIG;
-use crate::docker::docker_models::DockerSupportedLanguage;
+use crate::models::{cleanup_models::{ActivityType, CleanupService}, docker_models::DockerSupportedLanguage};
+use crate::config_service::GLOBAL_CONFIG;
 use crate::language_executor::generate_shell_command;
 use crate::session_management_service::SessionManagement;
 use crate::utils::{docker_utils::get_docker_instance, tar_utils::create_tar_archive};
-use crate::validation_service::ValidationError;
+use crate::models::validation_models::ValidationError;
 
 pub async fn handle_request(
     session_id: &str,

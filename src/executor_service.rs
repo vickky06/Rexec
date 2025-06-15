@@ -1,15 +1,14 @@
 use std::str::FromStr;
 
-use crate::config::GLOBAL_CONFIG;
+use crate::config_service::GLOBAL_CONFIG;
 use crate::docker::docker_manager;
-use crate::docker::docker_models::DockerSupportedLanguage;
+use crate::models::docker_models::DockerSupportedLanguage;
 use crate::proto::executor::code_executor_server::CodeExecutor;
 use crate::proto::executor::{ExecuteRequest, ExecuteResponse};
 use crate::session_management_service::SessionManagement;
-use crate::validation_service::{ValidRequest, ValidationError, ValidationService};
+use crate::models::validation_models::{ValidRequest, ValidationError, ValidationService};
 use tonic::{Request, Response, Status};
-#[derive(Debug, Default, Clone)]
-pub struct ExecutorService;
+use crate::models::executor_models::ExecutorService;
 
 #[tonic::async_trait]
 impl CodeExecutor for ExecutorService {
@@ -43,6 +42,7 @@ impl CodeExecutor for ExecutorService {
 pub async fn session_handler(data: ValidRequest) -> Result<String, Box<dyn std::error::Error>> {
     let session_id = data.get_session_id();
     let language = data.get_language();
+    let language_str = language.to_string();
     let code = data.get_code();
     println!("Handling request for language: {}", language);
 
@@ -50,7 +50,7 @@ pub async fn session_handler(data: ValidRequest) -> Result<String, Box<dyn std::
         .get()
         .unwrap()
         .session_management_service
-        .get_session_image(session_id, language)
+        .get_session_image(session_id, &language_str)
         .await
     {
         Ok(image) => {

@@ -1,12 +1,6 @@
-use crate::session_management_service::SessionManagementService;
-use once_cell::sync::OnceCell;
 use serde::Deserialize;
-use std::fmt::Debug;
-use std::fs;
+use crate::models::session_management_models::SessionManagementService;
 
-pub static GLOBAL_CONFIG: OnceCell<Config> = OnceCell::new();
-
-pub const CONFIG_FILE: &str = "config.toml";
 #[derive(Debug, Deserialize, Clone)]
 pub struct Dockerfiles {
     pub python: String,
@@ -55,13 +49,4 @@ pub struct Config {
     pub session_configs: SessionConfigs,
     #[serde(skip)]
     pub session_management_service: SessionManagementService,
-}
-
-impl Config {
-    pub fn new() -> Self {
-        let path = CONFIG_FILE;
-        let content = fs::read_to_string(path).expect("Failed to read config file");
-        let config: Config = toml::from_str(&content).expect("Failed to parse config file");
-        config
-    }
 }

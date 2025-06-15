@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use crate::docker::docker_models::DockerSupportedLanguage;
+use crate::models::docker_models::DockerSupportedLanguage;
 
 pub fn generate_shell_command(
     language: DockerSupportedLanguage,

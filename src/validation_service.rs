@@ -1,25 +1,15 @@
-use crate::config::GLOBAL_CONFIG;
-use crate::docker::docker_models::DockerSupportedLanguage;
+use crate::config_service::GLOBAL_CONFIG;
+use crate::models::docker_models::DockerSupportedLanguage;
 use crate::proto::executor::ExecuteRequest;
-use crate::session_management_service::{SessionError, SessionManagement};
+use crate::models::session_management_models::{SessionError};
+use crate::session_management_service::SessionManagement;
+use crate::models::validation_models::{ValidationService, ValidRequest, ValidationError};
+
 use std::error::Error;
 use std::fmt;
 use tonic::Request;
 
-#[derive(Debug)]
-pub enum ValidationError {
-    InvalidLanguage(String),
-    EmptyCode(),
-    EmptyLanguage(),
-    SessionIdError(String),
-    InvalidCode(String),
-}
 
-pub struct ValidRequest {
-    session_id: String,
-    code: String,
-    language: String,
-}
 impl ValidRequest {
     pub fn new(id: String, code: String, language: String) -> Self {
         ValidRequest {
@@ -62,7 +52,6 @@ impl ValidationError {
     }
 }
 
-pub struct ValidationService;
 
 impl ValidationService {
     pub async fn validate_request(

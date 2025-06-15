@@ -1,13 +1,5 @@
-use std::os::unix::net::SocketAddr;
-
-use crate::config::GLOBAL_CONFIG;
-
-pub struct PortsService {
-    grpc_server_port: i32,
-    grpc_ui_port: i32,
-    websocket_port: i32,
-    host: String,
-}
+use crate::models::port_models::PortsService;
+use crate::config_service::GLOBAL_CONFIG;
 
 impl PortsService {
     pub fn new() -> Self {
