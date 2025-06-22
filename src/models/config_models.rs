@@ -1,5 +1,5 @@
-use serde::Deserialize;
 use crate::models::session_management_models::SessionManagementService;
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Dockerfiles {

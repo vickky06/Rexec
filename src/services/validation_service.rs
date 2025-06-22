@@ -1,14 +1,16 @@
-use crate::config_service::GLOBAL_CONFIG;
-use crate::models::docker_models::DockerSupportedLanguage;
-use crate::proto::executor::ExecuteRequest;
-use crate::models::session_management_models::{SessionError};
-use crate::session_management_service::SessionManagement;
-use crate::models::validation_models::{ValidationService, ValidRequest, ValidationError};
+use crate::{
+    models::{
+        docker_models::DockerSupportedLanguage,
+        session_management_models::SessionError,
+        validation_models::{ValidRequest, ValidationError, ValidationService},
+    },
+    proto::executor::ExecuteRequest,
+    services::{config_service::GLOBAL_CONFIG, session_management_service::SessionManagement},
+};
 
 use std::error::Error;
 use std::fmt;
 use tonic::Request;
-
 
 impl ValidRequest {
     pub fn new(id: String, code: String, language: String) -> Self {
@@ -51,7 +53,6 @@ impl ValidationError {
         }
     }
 }
-
 
 impl ValidationService {
     pub async fn validate_request(

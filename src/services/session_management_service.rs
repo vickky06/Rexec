@@ -1,14 +1,17 @@
-use crate::config_service::GLOBAL_CONFIG;
-use crate::proto::executor::ExecuteRequest;
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap};
-use tokio::sync::Mutex;
-use tonic::Request;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+use tokio::sync::Mutex;
+use tonic::Request;
 
-
-use crate::models::session_management_models::{SessionError, SessionKey, SessionValue, SessionManagementService};
+use crate::{
+    models::session_management_models::{
+        SessionError, SessionKey, SessionManagementService, SessionValue,
+    },
+    proto::executor::ExecuteRequest,
+    services::config_service::GLOBAL_CONFIG,
+};
 
 pub const SESSION_ID: &str = "session_id";
 pub const ANONYMOUS: &str = "anonymous";
@@ -16,7 +19,6 @@ pub const ANONYMOUS: &str = "anonymous";
 use once_cell::sync::OnceCell;
 
 static SINGLETON_SESSION_MANAGEMENT_SERVICE: OnceCell<SessionManagementService> = OnceCell::new();
-
 
 impl SessionError {
     pub fn message(&self) -> String {
@@ -30,7 +32,6 @@ impl SessionError {
         }
     }
 }
-
 
 impl SessionKey {
     pub fn new(session_id: String, language: String) -> Self {
@@ -55,8 +56,6 @@ impl SessionKey {
         }
     }
 }
-
-
 
 impl SessionValue {
     pub fn new(image: String) -> Self {
@@ -85,8 +84,6 @@ pub trait SessionManagement {
 
     fn get_session_id(&self, request: &Request<ExecuteRequest>) -> Result<String, SessionError>;
 }
-
-
 
 impl SessionManagementService {
     pub fn new() -> Self {

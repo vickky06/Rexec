@@ -1,6 +1,8 @@
 use once_cell::sync::OnceCell;
 use std::fs;
+
 use crate::models::config_models::Config;
+
 pub static GLOBAL_CONFIG: OnceCell<Config> = OnceCell::new();
 
 pub const CONFIG_FILE: &str = "config.toml";

@@ -1,16 +1,18 @@
-use crate::config_service::GLOBAL_CONFIG;
 use bollard::Docker;
 use bollard::container::RemoveContainerOptions;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
-use crate::models::cleanup_models::{ActivityType,CleanupService};
+
+use crate::{
+    models::cleanup_models::{ActivityType, CleanupService},
+    services::config_service::GLOBAL_CONFIG,
+};
 
 pub const CLEANUP_ACTIVITY_CONTAINER: &str = "container";
 // pub const CLEANUP_ACTIVITY_IMAGE: &str = "image";
 pub const CLEANUP_ACTIVITY_ALL_TARS: &str = "all tars";
 // pub const CLEANUP_ACTIVITY_TAR: &str = "tar";
-
 
 impl CleanupService {
     pub async fn cleanup(&self, activity: ActivityType) -> Result<(), Box<dyn std::error::Error>> {

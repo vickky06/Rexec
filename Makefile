@@ -15,8 +15,6 @@ clean:
 	$(eval GRPC_UI_PORT=$(word 2, $(PORTS)))
 	@echo "SERVICE_PORT=$(SERVICE_PORT)"
 	@echo "GRPC_UI_PORT=$(GRPC_UI_PORT)"
-	@echo "Starting grpcui on GRPC_UI_PORT=$(GRPC_UI_PORT) and SERVICE_PORT=$(SERVICE_PORT)"
-
 fmt:
 	cargo fmt
 

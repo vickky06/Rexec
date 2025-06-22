@@ -1,5 +1,3 @@
-// websocket_server.rs
-
 use futures_util::{SinkExt, StreamExt};
 use tokio::net::TcpListener;
 use tokio_tungstenite::accept_async;

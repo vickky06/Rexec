@@ -1,22 +1,27 @@
-use bollard::Docker;
-use bollard::container::{
-    Config as ContainerConfig, CreateContainerOptions, StartContainerOptions,
+use bollard::{
+    Docker,
+    container::{Config as ContainerConfig, CreateContainerOptions, StartContainerOptions},
+    exec::{CreateExecOptions, StartExecResults},
+    image::BuildImageOptions,
+    models::{HostConfig, PortBinding},
 };
-use bollard::exec::{CreateExecOptions, StartExecResults};
-use bollard::image::BuildImageOptions;
-use bollard::models::{HostConfig, PortBinding};
 use futures_util::stream::StreamExt;
-use std::error::Error;
-use uuid::Uuid;
-use std::str::FromStr;
+use std::{error::Error, str::FromStr};
 use tokio::io::AsyncReadExt;
+use uuid::Uuid;
 
-use crate::models::{cleanup_models::{ActivityType, CleanupService}, docker_models::DockerSupportedLanguage};
-use crate::config_service::GLOBAL_CONFIG;
-use crate::language_executor::generate_shell_command;
-use crate::session_management_service::SessionManagement;
-use crate::utils::{docker_utils::get_docker_instance, tar_utils::create_tar_archive};
-use crate::models::validation_models::ValidationError;
+use crate::{
+    models::{
+        cleanup_models::{ActivityType, CleanupService},
+        docker_models::DockerSupportedLanguage,
+        validation_models::ValidationError,
+    },
+    services::{
+        config_service::GLOBAL_CONFIG, language_executor::generate_shell_command,
+        session_management_service::SessionManagement,
+    },
+    utils::{docker_utils::get_docker_instance, tar_utils::create_tar_archive},
+};
 
 pub async fn handle_request(
     session_id: &str,

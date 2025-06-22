@@ -1,14 +1,17 @@
 use std::str::FromStr;
-
-use crate::config_service::GLOBAL_CONFIG;
-use crate::docker::docker_manager;
-use crate::models::docker_models::DockerSupportedLanguage;
-use crate::proto::executor::code_executor_server::CodeExecutor;
-use crate::proto::executor::{ExecuteRequest, ExecuteResponse};
-use crate::session_management_service::SessionManagement;
-use crate::models::validation_models::{ValidRequest, ValidationError, ValidationService};
 use tonic::{Request, Response, Status};
-use crate::models::executor_models::ExecutorService;
+
+use crate::{
+    docker::docker_manager,
+    models::{
+        docker_models::DockerSupportedLanguage,
+        executor_models::ExecutorService,
+        validation_models::{ValidRequest, ValidationError, ValidationService},
+    },
+    proto::executor::code_executor_server::CodeExecutor,
+    proto::executor::{ExecuteRequest, ExecuteResponse},
+    services::{config_service::GLOBAL_CONFIG, session_management_service::SessionManagement},
+};
 
 #[tonic::async_trait]
 impl CodeExecutor for ExecutorService {

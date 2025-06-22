@@ -1,6 +1,5 @@
 pub struct ValidationService;
 
-
 #[derive(Debug)]
 pub enum ValidationError {
     InvalidLanguage(String),
