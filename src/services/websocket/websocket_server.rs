@@ -4,7 +4,7 @@ use tokio_tungstenite::accept_async;
 
 use crate::{
     models::websocket_message_model::WebSocketMessage,
-    services::{
+    services::all_session_services::{
         session_cache_service::{Session, SessionCache},
         session_service::update_create_session,
     },
@@ -39,17 +39,13 @@ pub async fn run_websocket_server(
                                                 // Since the session already has been updated if existed, we can insert it into the cache
                                                 session_cache.insert_session(session.clone());
                                                 // ONLY FOR TESTING PURPOSES
-                                                let session_validation_message = valid_session_process(
-                                                    session,
-                                                    &session_cache,
-                                                );
+                                                let session_validation_message =
+                                                    valid_session_process(session, &session_cache);
                                                 println!(
                                                     "Session processin validation: {}",
                                                     session_validation_message
                                                 );
 
-                                                
-                                            
                                                 // text.push_str(&format!(
                                                 //     " (Session ID: {}, Language: {}, Code: {})",
                                                 //     message.session_id,
