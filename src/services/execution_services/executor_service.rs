@@ -12,7 +12,7 @@ use crate::{
     proto::executor::{ExecuteRequest, ExecuteResponse},
     services::{
         all_session_services::session_management_service::SessionManagement,
-        config_service::GLOBAL_CONFIG,
+        helper_services::config_service::GLOBAL_CONFIG,
     },
 };
 

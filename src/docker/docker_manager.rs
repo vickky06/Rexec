@@ -18,7 +18,7 @@ use crate::{
     },
     services::{
         all_session_services::session_management_service::SessionManagement,
-        config_service::GLOBAL_CONFIG, 
+        helper_services::config_service::GLOBAL_CONFIG, 
         execution_services::language_executor::generate_shell_command,
     },
     utils::{docker_utils::get_docker_instance, tar_utils::create_tar_archive},

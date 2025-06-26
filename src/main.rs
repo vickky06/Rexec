@@ -11,8 +11,9 @@ use crate::services::{
         session_management_service::SessionManagement,
         session_service::get_session_management_service,
     },
-    cleanup_service,
-    config_service::GLOBAL_CONFIG,
+    helper_services::{
+        cleanup_service,config_service::GLOBAL_CONFIG
+    },
     websocket::websocket_server::run_websocket_server,
 };
 use models::{
