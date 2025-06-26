@@ -15,7 +15,6 @@ use std::path::PathBuf;
 /// Returns an error if code generation fails or if environment variables are missing.
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
-    // let descriptor_path = out_dir.join("executor_descriptor.bin");
 
     tonic_build::configure()
         .file_descriptor_set_path(out_dir.join("executor_descriptor.bin"))

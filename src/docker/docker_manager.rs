@@ -1,38 +1,42 @@
-use bollard::Docker;
-use bollard::container::{
-    Config as ContainerConfig, CreateContainerOptions, StartContainerOptions,
+use bollard::{
+    Docker,
+    container::{Config as ContainerConfig, CreateContainerOptions, StartContainerOptions},
+    exec::{CreateExecOptions, StartExecResults},
+    image::BuildImageOptions,
+    models::{HostConfig, PortBinding},
 };
-use bollard::exec::{CreateExecOptions, StartExecResults};
-use bollard::image::BuildImageOptions;
-use bollard::models::{HostConfig, PortBinding};
 use futures_util::stream::StreamExt;
-use std::error::Error;
-use uuid::Uuid;
-// use std::fs::File;
-use std::str::FromStr;
-// use tar::Builder;
+use std::{error::Error, str::FromStr};
 use tokio::io::AsyncReadExt;
+use uuid::Uuid;
 
-use crate::cleanup_service::{ActivityType, CleanupService};
-use crate::config::GLOBAL_CONFIG;
-use crate::docker::docker_models::DockerSupportedLanguage;
-use crate::session_management_service::SessionManagement;
-use crate::utils::{docker_utils::get_docker_instance, tar_utils::create_tar_archive};
-use crate::language_executor::generate_shell_command;
-use crate::validation_service::ValidationError;
+use crate::{
+    models::{
+        cleanup_models::{ActivityType, CleanupService},
+        docker_models::DockerSupportedLanguage,
+        validation_models::ValidationError,
+    },
+    services::{
+        config_service::GLOBAL_CONFIG, language_executor::generate_shell_command,
+        session_management_service::SessionManagement,
+    },
+    utils::{docker_utils::get_docker_instance, tar_utils::create_tar_archive},
+};
 
 pub async fn handle_request(
     session_id: &str,
     language: &str,
     code: &str,
 ) -> Result<String, Box<dyn Error>> {
-     let docker_language = match DockerSupportedLanguage::from_str(language){
-                Ok(lang) => lang,
-                Err(_) => {
-                    eprintln!("Unsupported language: {}", language);
-                    return Err(Box::new(ValidationError::InvalidLanguage(language.to_string())));
-                }
-            };
+    let docker_language = match DockerSupportedLanguage::from_str(language) {
+        Ok(lang) => lang,
+        Err(_) => {
+            eprintln!("Unsupported language: {}", language);
+            return Err(Box::new(ValidationError::InvalidLanguage(
+                language.to_string(),
+            )));
+        }
+    };
     let docker = get_docker_instance()?;
     //Docker::connect_with_local_defaults()?;
     let config = GLOBAL_CONFIG.get().unwrap();
@@ -50,7 +54,8 @@ pub async fn handle_request(
         build_and_run_container(session_id, &docker, dockerfile_path, language).await?;
 
     // Execute the code inside the container
-    let result = execute_code_in_new_container(&docker, &container_name, docker_language ,code).await?;
+    let result =
+        execute_code_in_new_container(&docker, &container_name, docker_language, code).await?;
 
     Ok(result)
 }
@@ -225,7 +230,8 @@ async fn execute_code_in_new_container(
     language: DockerSupportedLanguage,
     code: &str,
 ) -> Result<String, Box<dyn Error>> {
-    let shell_command = generate_shell_command(language, code).map_err(|e| format!("Failed to generate shell command: {}", e))?;//format!("echo '{}' > script.py && python script.py", code);
+    let shell_command = generate_shell_command(language, code)
+        .map_err(|e| format!("Failed to generate shell command: {}", e))?; //format!("echo '{}' > script.py && python script.py", code);
     let exec_options = CreateExecOptions {
         cmd: Some(vec!["sh", "-c", &shell_command]),
         attach_stdout: Some(true),
@@ -275,7 +281,10 @@ pub async fn execute_code_in_existing_container(
     // update this to accept multiple langeages
     let shell_command = generate_shell_command(language, code)
         .map_err(|e| format!("Failed to generate shell command: {}", e))?;
-    println!("Executing code in existing container '{}': {}", container_name, shell_command);
+    println!(
+        "Executing code in existing container '{}': {}",
+        container_name, shell_command
+    );
     let exec_options = CreateExecOptions {
         cmd: Some(vec!["sh", "-c", &shell_command]),
         attach_stdout: Some(true),

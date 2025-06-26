@@ -1,23 +1,23 @@
-use crate::config::GLOBAL_CONFIG;
-use crate::proto::executor::ExecuteRequest;
+use once_cell::sync::OnceCell;
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap};
-use std::hash::Hash;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
 use tonic::Request;
 
+use crate::{
+    models::session_management_models::{
+        SessionError, SessionKey, SessionManagementService, SessionValue,
+    },
+    proto::executor::ExecuteRequest,
+    services::config_service::GLOBAL_CONFIG,
+};
+
 pub const SESSION_ID: &str = "session_id";
 pub const ANONYMOUS: &str = "anonymous";
 
-#[derive(Debug)]
-pub enum SessionError {
-    NotFound(String),
-    InvalidLanguage(String),
-    ExecutionError(String),
-    Unauthenticated(String),
-}
+static SINGLETON_SESSION_MANAGEMENT_SERVICE: OnceCell<SessionManagementService> = OnceCell::new();
 
 impl SessionError {
     pub fn message(&self) -> String {
@@ -30,12 +30,6 @@ impl SessionError {
             SessionError::Unauthenticated(msg) => format!("Unauthenticated: {}", msg),
         }
     }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct SessionKey {
-    pub session_id: String,
-    pub language: String,
 }
 
 impl SessionKey {
@@ -60,11 +54,6 @@ impl SessionKey {
             None
         }
     }
-}
-
-#[derive(Clone, Debug)]
-pub struct SessionValue {
-    pub image: String,
 }
 
 impl SessionValue {
@@ -95,14 +84,6 @@ pub trait SessionManagement {
     fn get_session_id(&self, request: &Request<ExecuteRequest>) -> Result<String, SessionError>;
 }
 
-#[derive(Clone, Debug)]
-pub struct SessionManagementService {
-    ttl: Duration, // Default TTL of 1 hour
-    sessions: Arc<Mutex<HashMap<SessionKey, SessionValue>>>,
-    expirations: Arc<Mutex<BinaryHeap<Reverse<(Instant, String)>>>>, // Min-heap for expiration times
-    last_cleanup: Arc<Mutex<Instant>>,
-}
-
 impl SessionManagementService {
     pub fn new() -> Self {
         println!("Initializing SessionManagementService");
@@ -125,8 +106,17 @@ impl SessionManagementService {
 }
 
 impl Default for SessionManagementService {
+    //first call
     fn default() -> Self {
-        SessionManagementService::new()
+        if SINGLETON_SESSION_MANAGEMENT_SERVICE.get().is_some() {
+            println!("Returning existing SessionManagementService instance");
+            return SINGLETON_SESSION_MANAGEMENT_SERVICE.get().unwrap().clone();
+        }
+        println!("Creating default SessionManagementService");
+        SINGLETON_SESSION_MANAGEMENT_SERVICE
+            .set(SessionManagementService::new())
+            .ok();
+        return SINGLETON_SESSION_MANAGEMENT_SERVICE.get().unwrap().clone();
     }
 }
 

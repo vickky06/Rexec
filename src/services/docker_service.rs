@@ -1,11 +1,6 @@
-use std::str::FromStr;
+pub use crate::models::docker_models::DockerSupportedLanguage;
 
-pub enum DockerSupportedLanguage {
-    Python,
-    JavaScript,
-    Java,
-    // Go,
-}
+use std::str::FromStr;
 
 impl FromStr for DockerSupportedLanguage {
     type Err = ();
@@ -19,15 +14,14 @@ impl FromStr for DockerSupportedLanguage {
             _ => Err(()),
         }
     }
-    
 }
+
 impl DockerSupportedLanguage {
-    
     pub fn is_supported(lang: &str) -> Option<DockerSupportedLanguage> {
         DockerSupportedLanguage::from_str(lang).ok()
     }
-    
-    pub fn to_string(language:&DockerSupportedLanguage) -> String {
+
+    pub fn to_string(language: &DockerSupportedLanguage) -> String {
         match language {
             DockerSupportedLanguage::Python => "python".to_string(),
             DockerSupportedLanguage::JavaScript => "javascript".to_string(),

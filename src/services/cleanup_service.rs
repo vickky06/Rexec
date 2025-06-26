@@ -1,44 +1,18 @@
-use crate::config::GLOBAL_CONFIG;
 use bollard::Docker;
 use bollard::container::RemoveContainerOptions;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
 
+use crate::{
+    models::cleanup_models::{ActivityType, CleanupService},
+    services::config_service::GLOBAL_CONFIG,
+};
+
 pub const CLEANUP_ACTIVITY_CONTAINER: &str = "container";
 // pub const CLEANUP_ACTIVITY_IMAGE: &str = "image";
 pub const CLEANUP_ACTIVITY_ALL_TARS: &str = "all tars";
 // pub const CLEANUP_ACTIVITY_TAR: &str = "tar";
-
-#[derive(Debug, Default)]
-
-pub struct ActivityType {
-    pub container: Option<String>,
-    pub image: Option<String>,
-    pub all_tars: Option<String>,
-    pub tar: Option<String>,
-    pub ports: Option<Vec<u16>>,
-}
-
-impl ActivityType {
-    pub fn new(
-        container: Option<String>,
-        image: Option<String>,
-        all_tars: Option<String>,
-        tar: Option<String>,
-        ports: Option<Vec<u16>>,
-    ) -> Self {
-        ActivityType {
-            container,
-            image,
-            all_tars,
-            tar,
-            ports,
-        }
-    }
-}
-
-pub struct CleanupService;
 
 impl CleanupService {
     pub async fn cleanup(&self, activity: ActivityType) -> Result<(), Box<dyn std::error::Error>> {
@@ -60,7 +34,7 @@ impl CleanupService {
             Self::cleanup_single_tar(tar_path).await?;
         }
         if let Some(ports) = activity.ports {
-            println!("Cleaning up ports...");
+            println!("Cleaning up ports...{:?}", ports);
             Self::cleanup_ports(ports).await;
         }
         if activity.container.is_none()
@@ -76,6 +50,7 @@ impl CleanupService {
 
     async fn cleanup_containers() -> Result<(), Box<dyn std::error::Error>> {
         let docker = Docker::connect_with_local_defaults()?;
+        println!("Connected to Docker successfully.");
         let created_by_tag = GLOBAL_CONFIG
             .get()
             .unwrap()
@@ -88,6 +63,11 @@ impl CleanupService {
                 bollard::container::ListContainersOptions::<String>::default(),
             ))
             .await?;
+        println!("Found {} containers", containers.len());
+        if containers.is_empty() {
+            println!("No containers found to clean up.");
+            return Ok(());
+        }
         for container in containers {
             let id = container.id.clone().unwrap();
             if let Some(labels) = &container.labels {
@@ -110,6 +90,11 @@ impl CleanupService {
 
     async fn cleanup_tars() -> Result<(), Box<dyn std::error::Error>> {
         let tar_path_base = &GLOBAL_CONFIG.get().unwrap().paths.tar_path; //returns "./docker/context/"
+        println!("Cleaning up all tar files in: {}", tar_path_base);
+        if !Path::new(tar_path_base).exists() {
+            println!("Tar path does not exist: {}", tar_path_base);
+            return Ok(());
+        }
         for entry in fs::read_dir(tar_path_base.as_ref() as &Path)? {
             let entry = entry?;
             let path = entry.path();
@@ -134,7 +119,7 @@ impl CleanupService {
         Ok(())
     }
 
-    async fn cleanup_ports(ports: Vec<u16>) {
+    async fn cleanup_ports(ports: Vec<i32>) {
         let ports_arg = ports
             .iter()
             .map(|port| port.to_string())
@@ -152,6 +137,26 @@ impl CleanupService {
         } else {
             eprintln!("kill_ports.sh execution failed.");
             eprintln!("Error: {}", String::from_utf8_lossy(&output.stderr));
+        }
+
+        println!("Ports cleaned up: {:?}", ports);
+    }
+}
+
+impl ActivityType {
+    pub fn new(
+        container: Option<String>,
+        image: Option<String>,
+        all_tars: Option<String>,
+        tar: Option<String>,
+        ports: Option<Vec<i32>>,
+    ) -> Self {
+        ActivityType {
+            container,
+            image,
+            all_tars,
+            tar,
+            ports,
         }
     }
 }
