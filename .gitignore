@@ -2,3 +2,4 @@
 /.vscode/
 /docker/context/*
 !/docker/context/.gitkeep
+.DS_Store
