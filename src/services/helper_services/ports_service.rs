@@ -1,5 +1,6 @@
-use crate::{models::port_models::PortsService, 
-    services::helper_services::config_service::GLOBAL_CONFIG};
+use crate::{
+    models::port_models::PortsService, services::helper_services::config_service::GLOBAL_CONFIG,
+};
 
 impl PortsService {
     pub fn new() -> Self {

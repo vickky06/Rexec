@@ -42,7 +42,7 @@ impl CleanupService {
         {
             println!("No cleanup activity specified.");
         }
-
+        println!("Cleanup completed successfully.");
         Ok(())
     }
 

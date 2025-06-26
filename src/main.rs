@@ -11,9 +11,7 @@ use crate::services::{
         session_management_service::SessionManagement,
         session_service::get_session_management_service,
     },
-    helper_services::{
-        cleanup_service,config_service::GLOBAL_CONFIG
-    },
+    helper_services::{cleanup_service, config_service::GLOBAL_CONFIG},
     websocket::websocket_server::run_websocket_server,
 };
 use models::{
@@ -99,14 +97,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 );
                 loop {
                     if session_management_service.get_last_cleanup().await + cleanup_interval
-                        <= std::time::Instant::now()
-                    {
-                        println!("Skipping cleanup, last cleanup was recent.");
+                        >std::time::Instant::now()
+                    {   
+                        println!("Skipping cleanup, last cleanup was recent. {:?}", session_management_service.get_last_cleanup().await);
                         tokio::time::sleep(cleanup_interval).await;
                         continue;
                     }
                     tokio::time::sleep(cleanup_interval).await;
-                    let _ = session_management_service.cleanup_expired_sessions();
+                    let _ = session_management_service.cleanup_expired_sessions().await;
                     println!("Periodic session cleanup completed.");
                 }
             });
