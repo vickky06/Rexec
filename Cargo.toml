@@ -27,6 +27,7 @@ async-trait = "0.1.80"
 # WebSocket related
 tokio-tungstenite = "*"                     # async websocket server/client
 tungstenite = "0.20"                               # underlying websocket protocol support
+dashmap = "6.1.0"
 
 
 

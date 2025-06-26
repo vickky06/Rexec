@@ -1,9 +1,6 @@
+pub use crate::models::validation_models::{ValidRequest, ValidationError, ValidationService};
 use crate::{
-    models::{
-        docker_models::DockerSupportedLanguage,
-        session_management_models::SessionError,
-        validation_models::{ValidRequest, ValidationError, ValidationService},
-    },
+    models::{docker_models::DockerSupportedLanguage, session_management_models::SessionError},
     proto::executor::ExecuteRequest,
     services::{config_service::GLOBAL_CONFIG, session_management_service::SessionManagement},
 };

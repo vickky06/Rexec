@@ -1,3 +1,4 @@
+use once_cell::sync::OnceCell;
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap};
 use std::sync::Arc;
@@ -15,8 +16,6 @@ use crate::{
 
 pub const SESSION_ID: &str = "session_id";
 pub const ANONYMOUS: &str = "anonymous";
-
-use once_cell::sync::OnceCell;
 
 static SINGLETON_SESSION_MANAGEMENT_SERVICE: OnceCell<SessionManagementService> = OnceCell::new();
 

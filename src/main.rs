@@ -8,7 +8,7 @@ use proto::executor::code_executor_server::CodeExecutorServer;
 
 use crate::services::{
     cleanup_service, config_service::GLOBAL_CONFIG, session_management_service::SessionManagement,
-    websocket_server::run_websocket_server,
+    session_service::get_session_management_service, websocket_server::run_websocket_server,
 };
 use models::{
     cleanup_models::{ActivityType, CleanupService},
@@ -54,7 +54,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let websocket_addr = ports_service.get_websocket_address();
 
-    let service = ExecutorService::default();
+    let execution_service = ExecutorService::default();
 
     let reflection_service = Builder::configure()
         .register_encoded_file_descriptor_set(proto::executor::FILE_DESCRIPTOR_SET)
@@ -67,6 +67,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     match command.as_str() {
+        // will run with cargo run -- run
         cmd if cmd.contains("run") => {
             println!(
                 "Initiating port {} for {} service",
@@ -79,6 +80,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .unwrap()
                 .session_management_service
                 .clone();
+
+            let _ = get_session_management_service();
 
             tokio::spawn(async move {
                 let cleanup_interval = Duration::from_secs(
@@ -111,7 +114,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             let grpc_server = Server::builder()
-                .add_service(CodeExecutorServer::new(service))
+                .add_service(CodeExecutorServer::new(execution_service))
                 .add_service(reflection_service)
                 .serve_with_shutdown(grpc_addr, shutdown_signal);
             // Run the server and listen for shutdown signal
@@ -126,8 +129,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let container = cleanup_service::CLEANUP_ACTIVITY_CONTAINER;
             let all_tars = cleanup_service::CLEANUP_ACTIVITY_ALL_TARS;
             println!("Cleaning up resources...");
-            println!("Container: {}", container);
-            println!("All Tars: {}", all_tars);
+            // println!("Container: {}", container);
+            // println!("All Tars: {}", all_tars);
             // Perform cleanup operations
             // Cleanup logic here
             let cleanup_service = CleanupService {};
