@@ -6,7 +6,7 @@ use crate::{
     models::{docker_models::DockerSupportedLanguage, websocket_message_model::WebSocketMessage},
     services::{
         all_session_services::{
-            session_cache_service::{Session, SessionCache},
+            session_cache_service::{ Session, SessionCache},
             session_service::update_create_session,
         },
         validation_services::language_validation::get_validator,
@@ -37,7 +37,7 @@ pub async fn run_websocket_server(
                                 println!("Sanitized message: {}", text);
                                 match serde_json::from_str::<WebSocketMessage>(&text) {
                                     Ok(message) => {
-                                        let session_cache = SessionCache::new();
+                                        let session_cache: &'static SessionCache = SessionCache::new();
                                         println!("Parsed WebSocketMessage: {:?}", message);
                                         let in_mem_session = update_create_session(&message);
                                         match in_mem_session {
@@ -150,5 +150,14 @@ fn syntex_validation(language: DockerSupportedLanguage, code: String) -> bool {
             eprintln!("❌ Syntax error: {}", e);
             false
         }
+    }
+}
+
+async fn close_connection(websocket: &mut tokio_tungstenite::WebSocketStream<tokio::net::TcpStream>, session: Session, session_cache: &'static SessionCache) {
+    if let Err(e) = websocket.close(None).await {
+        eprintln!("Error closing WebSocket connection: {}", e);
+    } else {
+       session_cache.remove_session(&session.session_id);
+        println!("WebSocket connection closed successfully");
     }
 }
