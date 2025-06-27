@@ -10,7 +10,10 @@ use crate::{
     },
     proto::executor::code_executor_server::CodeExecutor,
     proto::executor::{ExecuteRequest, ExecuteResponse},
-    services::{config_service::GLOBAL_CONFIG, session_management_service::SessionManagement},
+    services::{
+        all_session_services::session_management_service::SessionManagement,
+        helper_services::config_service::GLOBAL_CONFIG,
+    },
 };
 
 #[tonic::async_trait]

@@ -11,7 +11,7 @@ use crate::{
         SessionError, SessionKey, SessionManagementService, SessionValue,
     },
     proto::executor::ExecuteRequest,
-    services::config_service::GLOBAL_CONFIG,
+    services::helper_services::config_service::GLOBAL_CONFIG,
 };
 
 pub const SESSION_ID: &str = "session_id";

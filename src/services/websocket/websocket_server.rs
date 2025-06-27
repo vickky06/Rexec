@@ -3,11 +3,15 @@ use tokio::net::TcpListener;
 use tokio_tungstenite::accept_async;
 
 use crate::{
-    models::websocket_message_model::WebSocketMessage,
+    models::{docker_models::DockerSupportedLanguage, websocket_message_model::WebSocketMessage},
     services::{
-        session_cache_service::{Session, SessionCache},
-        session_service::update_create_session,
+        all_session_services::{
+            session_cache_service::{ Session, SessionCache},
+            session_service::update_create_session,
+        },
+        validation_services::language_validation::get_validator,
     },
+    utils::helper_utils::sanitize_code_content,
 };
 
 pub async fn run_websocket_server(
@@ -27,11 +31,13 @@ pub async fn run_websocket_server(
 
                     while let Some(msg) = websocket.next().await {
                         match msg {
-                            Ok(tungstenite::Message::Text(mut text)) => {
-                                println!("Received message: {}", text);
+                            Ok(tungstenite::Message::Text(input_text)) => {
+                                println!("Received message: {}", input_text);
+                                let mut text = sanitize_code_content(&input_text);
+                                println!("Sanitized message: {}", text);
                                 match serde_json::from_str::<WebSocketMessage>(&text) {
                                     Ok(message) => {
-                                        let session_cache = SessionCache::new();
+                                        let session_cache: &'static SessionCache = SessionCache::new();
                                         println!("Parsed WebSocketMessage: {:?}", message);
                                         let in_mem_session = update_create_session(&message);
                                         match in_mem_session {
@@ -39,17 +45,23 @@ pub async fn run_websocket_server(
                                                 // Since the session already has been updated if existed, we can insert it into the cache
                                                 session_cache.insert_session(session.clone());
                                                 // ONLY FOR TESTING PURPOSES
-                                                let session_validation_message = valid_session_process(
-                                                    session,
-                                                    &session_cache,
-                                                );
+                                                let session_validation_message =
+                                                    valid_session_process(session, &session_cache);
                                                 println!(
                                                     "Session processin validation: {}",
                                                     session_validation_message
                                                 );
-
-                                                
-                                            
+                                                let is_syntex_valid = syntex_validation(
+                                                    message.get_language().unwrap(),
+                                                    message.get_code_string(),
+                                                );
+                                                text.push_str(&format!(
+                                                    " (Session ID: {}, Language: {}, Code: {}, Syntax Valid: {})",
+                                                    message.session_id,
+                                                    message.language,
+                                                    message.get_code_string(),
+                                                    is_syntex_valid
+                                                ));
                                                 // text.push_str(&format!(
                                                 //     " (Session ID: {}, Language: {}, Code: {})",
                                                 //     message.session_id,
@@ -124,5 +136,28 @@ fn valid_session_process(session: Session, session_cache: &'static SessionCache)
         None => {
             return format!("{}Session not found in cache", TAG);
         }
+    }
+}
+
+fn syntex_validation(language: DockerSupportedLanguage, code: String) -> bool {
+    let validator = get_validator(language.clone());
+    match validator.validate(&code) {
+        Ok(_) => {
+            println!("✅ {:?} syntax is valid", language);
+            true
+        }
+        Err(e) => {
+            eprintln!("❌ Syntax error: {}", e);
+            false
+        }
+    }
+}
+
+async fn close_connection(websocket: &mut tokio_tungstenite::WebSocketStream<tokio::net::TcpStream>, session: Session, session_cache: &'static SessionCache) {
+    if let Err(e) = websocket.close(None).await {
+        eprintln!("Error closing WebSocket connection: {}", e);
+    } else {
+       session_cache.remove_session(&session.session_id);
+        println!("WebSocket connection closed successfully");
     }
 }

@@ -4,9 +4,9 @@ use crate::{
         in_memory_session_cache_model::{Session, SessionCache, SessionError, SessionErrorType},
     },
     services::{
-        code_editor_service::CodeEditor,
-        session_cache_service::SessionCache as session_cache_service,
-        websocket_message_service::{Code, Patch, WebSocketMessage},
+        all_session_services::session_cache_service::SessionCache as session_cache_service,
+        execution_services::code_editor_service::CodeEditor,
+        websocket::websocket_message_service::{Code, Patch, WebSocketMessage},
     },
 };
 

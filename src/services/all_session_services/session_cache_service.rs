@@ -37,7 +37,7 @@ impl SessionCache {
         self.sessions.get_mut(session_id)
     }
 
-    fn remove_session(&self, session_id: &str) {
+    pub fn remove_session(&self, session_id: &str) {
         self.sessions.remove(session_id);
     }
 }

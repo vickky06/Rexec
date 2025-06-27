@@ -17,8 +17,9 @@ use crate::{
         validation_models::ValidationError,
     },
     services::{
-        config_service::GLOBAL_CONFIG, language_executor::generate_shell_command,
-        session_management_service::SessionManagement,
+        all_session_services::session_management_service::SessionManagement,
+        execution_services::language_executor::generate_shell_command,
+        helper_services::config_service::GLOBAL_CONFIG,
     },
     utils::{docker_utils::get_docker_instance, tar_utils::create_tar_archive},
 };

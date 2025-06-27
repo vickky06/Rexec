@@ -8,3 +8,4 @@ pub mod port_models;
 pub mod session_management_models;
 pub mod validation_models;
 pub mod websocket_message_model;
+pub mod websocket_session_pool;
