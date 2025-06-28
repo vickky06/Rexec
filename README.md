@@ -11,6 +11,7 @@ A high-performance, Rust-based code execution engine designed for evaluating DSA
 - 🐳 **Containerized Execution**: Docker isolation for security
 - 🔗 **gRPC Interface**: High-performance communication with frontend/backend
 - 🛡 **Safe & Fast**: Built with Rust for speed and memory safety
+- 📦 **WebSockets**: Web Sockets for continious conversation, to validate syntex and code verfication.
 - 📦 **Pluggable Queues (Upcoming)**: Kafka/RabbitMQ for async execution
 
 ---
@@ -18,9 +19,9 @@ A high-performance, Rust-based code execution engine designed for evaluating DSA
 ## 🏗 Architecture
 
 ```plaintext
-Frontend
+Frontend  -> Code Validation --> Validation using Tree Library. <Non Docker> 
    ↓
-Gateway (Node.js + gRPC)
+Request for Code <submission>
    ↓
 DSA Engine (Rust)
    ↓
