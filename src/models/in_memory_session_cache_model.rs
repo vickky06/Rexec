@@ -21,7 +21,7 @@ pub struct SessionError {
     pub error_type: SessionErrorType,
     pub error_code: u16,
 }
-
+#[derive(Debug)]
 pub struct SessionCache {
     pub sessions: Arc<DashMap<String, Session>>,
 }

@@ -19,7 +19,7 @@ use crate::{
     services::{
         all_session_services::session_management_service::SessionManagement,
         execution_services::language_executor::generate_shell_command,
-        helper_services::config_service::GLOBAL_CONFIG,
+        helper_services::config_service::get_global_config,
     },
     utils::{docker_utils::get_docker_instance, tar_utils::create_tar_archive},
 };
@@ -40,7 +40,8 @@ pub async fn handle_request(
     };
     let docker = get_docker_instance()?;
     //Docker::connect_with_local_defaults()?;
-    let config = GLOBAL_CONFIG.get().unwrap();
+    println!("Got docker instance");
+    let config = get_global_config(|config| config.clone()).await;
     // Select the appropriate Dockerfile
     let dockerfile_path = match DockerSupportedLanguage::from_str(language) {
         Ok(DockerSupportedLanguage::Python) => &config.dockerfiles.python,
@@ -49,7 +50,7 @@ pub async fn handle_request(
         // Ok(DockerSupportedLanguage::Go) => &config.dockerfiles.go,
         _ => return Err(format!("Unsupported language: {}", language).into()),
     };
-
+    println!("{:?} docker file path", dockerfile_path);
     // Build and run the container
     let container_name =
         build_and_run_container(session_id, &docker, dockerfile_path, language).await?;
@@ -68,13 +69,14 @@ pub async fn build_and_run_container(
     language: &str,
 ) -> Result<String, Box<dyn Error>> {
     println!("Building and running container for language: {}", language);
-    let config = GLOBAL_CONFIG.get().unwrap();
+    let config = get_global_config(|config| config.clone()).await;
+    println!("Config received image under process");
     let image_name = format!(
         "{}_{}_{}",
         config.constants.executor_image_name, session_id, language
     );
     // Create tar archive for build context
-
+    println!("image name {:?}", image_name);
     let tar_path_base = &config.paths.tar_path; //returns "./docker/context/"
     // println!("tar_path_base: {}", tar_path_base);
     let ref tar_path_formatted = format!(
@@ -138,21 +140,23 @@ pub async fn build_and_run_container(
 
     let container_name = format!(
         "{}_{}_{}",
-        GLOBAL_CONFIG
-            .get()
-            .unwrap()
+        get_global_config(|config| config.clone())
+            .await
             .constants
             .executor_container_name,
         language,
         session_id
     );
-    let created_by_tag = GLOBAL_CONFIG
-        .get()
-        .unwrap()
+    let created_by_tag = get_global_config(|config| config.clone())
+        .await
         .constants
         .docker_created_by_label
         .clone();
-    let label: String = GLOBAL_CONFIG.get().unwrap().build.service_name.clone();
+    let label: String = get_global_config(|config| config.clone())
+        .await
+        .build
+        .service_name
+        .clone();
 
     let config = ContainerConfig {
         labels: Some([(created_by_tag, label)].iter().cloned().collect()),
@@ -193,12 +197,12 @@ pub async fn build_and_run_container(
     println!("Container '{}' started successfully!", container_name);
 
     // Store session info
-    let session_service = &GLOBAL_CONFIG
-        .get()
-        .expect("Global config not set")
+    let session_service = &get_global_config(|config| config.clone())
+        .await
         .session_management_service;
 
     session_service
+        .unwrap()
         .add_session(
             session_id.to_string(),
             language.to_string(),
@@ -212,6 +216,7 @@ pub async fn build_and_run_container(
     );
     // FOR TESTING PURPOSES: Retrieve and print session image
     match session_service
+        .unwrap()
         .get_session_image(session_id, language)
         .await
     {

@@ -1,10 +1,10 @@
 use crate::{
-    models::port_models::PortsService, services::helper_services::config_service::GLOBAL_CONFIG,
+    models::port_models::PortsService, services::helper_services::config_service::get_global_config,
 };
 
 impl PortsService {
-    pub fn new() -> Self {
-        let build = &GLOBAL_CONFIG.get().unwrap().build;
+    pub async fn new() -> Self {
+        let build = &get_global_config(|config| config.clone()).await.build;
         PortsService {
             grpc_server_port: build.service_port,
             grpc_ui_port: build.grpc_ui_port,

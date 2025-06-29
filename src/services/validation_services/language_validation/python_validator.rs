@@ -4,7 +4,6 @@ use tree_sitter_python;
 pub struct PythonValidator;
 
 impl SyntaxValidator for PythonValidator {
-
     fn validate(&self, code: &str) -> Result<tree_sitter::Tree, ValidationError> {
         let language = tree_sitter_python::language();
         let mut parser = Parser::new();

@@ -6,7 +6,7 @@ use std::process::Command;
 
 use crate::{
     models::cleanup_models::{ActivityType, CleanupService},
-    services::helper_services::config_service::GLOBAL_CONFIG,
+    services::helper_services::config_service::get_global_config,
 };
 
 pub const CLEANUP_ACTIVITY_CONTAINER: &str = "container";
@@ -49,13 +49,16 @@ impl CleanupService {
     async fn cleanup_containers() -> Result<(), Box<dyn std::error::Error>> {
         let docker = Docker::connect_with_local_defaults()?;
         println!("Connected to Docker successfully.");
-        let created_by_tag = GLOBAL_CONFIG
-            .get()
-            .unwrap()
+        let created_by_tag = get_global_config(|config| config.clone())
+            .await
             .constants
             .docker_created_by_label
             .clone();
-        let label: String = GLOBAL_CONFIG.get().unwrap().build.service_name.clone();
+        let label: String = get_global_config(|config| config.clone())
+            .await
+            .build
+            .service_name
+            .clone();
         let containers = docker
             .list_containers(Some(
                 bollard::container::ListContainersOptions::<String>::default(),
@@ -87,7 +90,10 @@ impl CleanupService {
     }
 
     async fn cleanup_tars() -> Result<(), Box<dyn std::error::Error>> {
-        let tar_path_base = &GLOBAL_CONFIG.get().unwrap().paths.tar_path; //returns "./docker/context/"
+        let tar_path_base = &get_global_config(|config| config.clone())
+            .await
+            .paths
+            .tar_path; //returns "./docker/context/"
         println!("Cleaning up all tar files in: {}", tar_path_base);
         if !Path::new(tar_path_base).exists() {
             println!("Tar path does not exist: {}", tar_path_base);

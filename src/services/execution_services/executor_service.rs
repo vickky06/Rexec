@@ -8,11 +8,10 @@ use crate::{
         executor_models::ExecutorService,
         validation_models::{ValidRequest, ValidationError, ValidationService},
     },
-    proto::executor::code_executor_server::CodeExecutor,
-    proto::executor::{ExecuteRequest, ExecuteResponse},
+    proto::executor::{ExecuteRequest, ExecuteResponse, code_executor_server::CodeExecutor},
     services::{
         all_session_services::session_management_service::SessionManagement,
-        helper_services::config_service::GLOBAL_CONFIG,
+        helper_services::config_service::get_global_config,
     },
 };
 
@@ -52,10 +51,11 @@ pub async fn session_handler(data: ValidRequest) -> Result<String, Box<dyn std::
     let code = data.get_code();
     println!("Handling request for language: {}", language);
 
-    match GLOBAL_CONFIG
-        .get()
-        .unwrap()
+    let global_config_instance = get_global_config(|config| config.clone())
+        .await
         .session_management_service
+        .unwrap();
+    match global_config_instance
         .get_session_image(session_id, &language_str)
         .await
     {
@@ -81,9 +81,8 @@ pub async fn session_handler(data: ValidRequest) -> Result<String, Box<dyn std::
                 }
             }
         }
-
         Err(e) => {
-            eprintln!("image not found {:?}", e);
+            eprintln!("image not found {:?}, creating new image", e);
             let result = docker_manager::handle_request(session_id, language, code).await?;
             Ok(result)
         }

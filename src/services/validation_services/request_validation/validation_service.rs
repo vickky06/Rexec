@@ -4,7 +4,7 @@ use crate::{
     proto::executor::ExecuteRequest,
     services::{
         all_session_services::session_management_service::SessionManagement,
-        helper_services::config_service::GLOBAL_CONFIG,
+        helper_services::config_service::get_global_config,
     },
 };
 
@@ -59,16 +59,19 @@ impl ValidationService {
         request: &Request<ExecuteRequest>,
     ) -> Result<ValidRequest, ValidationError> {
         // Extract the session_id from metadata before moving request
-        let session_id = match GLOBAL_CONFIG
-            .get()
-            .unwrap()
+        let session_id = match get_global_config(|config| config.clone())
+            .await
             .session_management_service
+            .unwrap()
             .get_session_id(request)
         {
-            Ok(id) => id,
+            Ok(id) => {
+                println!("session ID {:?}", id);
+                id
+            }
             Err(e) => {
                 let error = ValidationError::SessionIdError(format!("{:?}", e));
-                println!("{}", error.to_string());
+                println!("error {}", error.to_string());
                 return Err(error);
             }
         };

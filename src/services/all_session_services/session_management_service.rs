@@ -7,18 +7,16 @@ use tokio::sync::Mutex;
 use tonic::Request;
 
 use crate::{
-    models::session_management_models::{
-        SessionError, SessionKey, SessionManagementService, SessionValue,
-    },
+    models::session_management_models::{SessionError, SessionKey, SessionValue},
     proto::executor::ExecuteRequest,
-    services::helper_services::config_service::GLOBAL_CONFIG,
+    services::helper_services::config_service::get_global_config,
 };
 
+pub use crate::models::session_management_models::SessionManagementService;
 pub const SESSION_ID: &str = "session_id";
 pub const ANONYMOUS: &str = "anonymous";
 
 static SINGLETON_SESSION_MANAGEMENT_SERVICE: OnceCell<SessionManagementService> = OnceCell::new();
-
 impl SessionError {
     pub fn message(&self) -> String {
         match self {
@@ -85,14 +83,16 @@ pub trait SessionManagement {
 }
 
 impl SessionManagementService {
-    pub fn new() -> Self {
-        println!("Initializing SessionManagementService");
-        SessionManagementService {
-            sessions: Arc::new(Mutex::new(HashMap::new())),
-            expirations: Arc::new(Mutex::new(BinaryHeap::new())),
-            ttl: Duration::from_secs(3600),
-            last_cleanup: Arc::new(Mutex::new(Instant::now())),
+    pub fn new() -> &'static Self {
+        if SINGLETON_SESSION_MANAGEMENT_SERVICE.get().is_some() {
+            println!("Returning existing SessionManagementService instance");
+            return SINGLETON_SESSION_MANAGEMENT_SERVICE.get().unwrap();
         }
+        println!("Creating default SessionManagementService");
+        SINGLETON_SESSION_MANAGEMENT_SERVICE
+            .set(SessionManagementService::default())
+            .ok();
+        return SINGLETON_SESSION_MANAGEMENT_SERVICE.get().unwrap();
     }
 
     pub async fn set_last_cleanup(&self, time: Instant) {
@@ -106,17 +106,14 @@ impl SessionManagementService {
 }
 
 impl Default for SessionManagementService {
-    //first call
     fn default() -> Self {
-        if SINGLETON_SESSION_MANAGEMENT_SERVICE.get().is_some() {
-            println!("Returning existing SessionManagementService instance");
-            return SINGLETON_SESSION_MANAGEMENT_SERVICE.get().unwrap().clone();
+        println!("Initializing SessionManagementService");
+        SessionManagementService {
+            sessions: Arc::new(Mutex::new(HashMap::new())),
+            expirations: Arc::new(Mutex::new(BinaryHeap::new())),
+            ttl: Duration::from_secs(3600),
+            last_cleanup: Arc::new(Mutex::new(Instant::now())),
         }
-        println!("Creating default SessionManagementService");
-        SINGLETON_SESSION_MANAGEMENT_SERVICE
-            .set(SessionManagementService::new())
-            .ok();
-        return SINGLETON_SESSION_MANAGEMENT_SERVICE.get().unwrap().clone();
     }
 }
 
@@ -132,8 +129,14 @@ impl SessionManagement for SessionManagementService {
         };
 
         // Access `GLOBAL_CONFIG` outside of the lock
-        let max_sessions = GLOBAL_CONFIG.get().unwrap().session_configs.max_sessions;
-        let session_timeout = GLOBAL_CONFIG.get().unwrap().session_configs.session_timeout;
+        let max_sessions = get_global_config(|config| config.clone())
+            .await
+            .session_configs
+            .max_sessions;
+        let session_timeout = get_global_config(|config| config.clone())
+            .await
+            .session_configs
+            .session_timeout;
 
         println!(
             "Current session count: {}, Max sessions: {}, Session timeout: {} seconds",
@@ -252,7 +255,7 @@ impl SessionManagement for SessionManagementService {
             .and_then(|v: &tonic::metadata::MetadataValue<tonic::metadata::Ascii>| v.to_str().ok())
             .unwrap_or(ANONYMOUS)
             .to_string();
-
+        println!("get session ID {:?}", session_id);
         if session_id == ANONYMOUS {
             return Err(SessionError::Unauthenticated(
                 "Session ID is required for execution.".to_string(),

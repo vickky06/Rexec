@@ -15,7 +15,7 @@ impl SyntaxValidator for JavaScriptValidator {
         println!("{} code received", code);
         parser
             .set_language(language)
-            .map_err(|e|self.validation_error( &format!("Set lang error: {:?}", e)))?;
+            .map_err(|e| self.validation_error(&format!("Set lang error: {:?}", e)))?;
 
         let tree = parser
             .parse(code, None)

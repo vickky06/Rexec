@@ -11,14 +11,16 @@ use crate::services::{
         session_management_service::SessionManagement,
         session_service::get_session_management_service,
     },
-    helper_services::{cleanup_service, config_service::GLOBAL_CONFIG},
+    helper_services::{
+        cleanup_service,
+        config_service::{get_global_config, set_global_config},
+    },
     websocket::websocket_server::run_websocket_server,
 };
 use models::{
     cleanup_models::{ActivityType, CleanupService},
     config_models::Config,
     executor_models::ExecutorService,
-    session_management_models::SessionManagementService as ssm,
 };
 
 use crate::models::port_models::PortsService as ps;
@@ -45,11 +47,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut config = Config::new();
 
     let server_pod_id = Uuid::new_v4(); // Replace with actual server pod ID
-    config.session_management_service = ssm::default();
-    // session_management_service::SessionManagementService::default(); // second call
+    config.init();
     config.build.service_name = format!("{} {}", config.build.service_name, server_pod_id);
-    GLOBAL_CONFIG.set(config).expect("Config already set");
-    let ports_service = ps::new(); //ports_service::PortsService::new();
+    set_global_config(config);
+    let ports_service = ps::new().await; //ports_service::PortsService::new();
     let address = ports_service.get_grpc_server_address();
     println!("gRPC server address: {}", address); // Add this line
     let grpc_addr: SocketAddr = address
@@ -76,12 +77,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!(
                 "Initiating port {} for {} service",
                 grpc_addr,
-                &GLOBAL_CONFIG.get().unwrap().constants.service_name
+                &get_global_config(|config| config.clone())
+                    .await
+                    .constants
+                    .service_name
             );
 
-            let session_management_service = GLOBAL_CONFIG
-                .get()
-                .unwrap()
+            let session_management_service = get_global_config(|config| config.clone())
+                .await
                 .session_management_service
                 .clone();
 
@@ -89,22 +92,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             tokio::spawn(async move {
                 let cleanup_interval = Duration::from_secs(
-                    GLOBAL_CONFIG
-                        .get()
-                        .unwrap()
+                    get_global_config(|config| config.clone())
+                        .await
                         .session_configs
                         .session_cleanup_interval,
                 );
                 loop {
-                    if session_management_service.get_last_cleanup().await + cleanup_interval
-                        >std::time::Instant::now()
-                    {   
-                        println!("Skipping cleanup, last cleanup was recent. {:?}", session_management_service.get_last_cleanup().await);
+                    if session_management_service.unwrap().get_last_cleanup().await
+                        + cleanup_interval
+                        > std::time::Instant::now()
+                    {
+                        println!(
+                            "Skipping cleanup, last cleanup was recent. {:?}",
+                            session_management_service
+                                .as_ref()
+                                .unwrap()
+                                .get_last_cleanup()
+                                .await
+                        );
                         tokio::time::sleep(cleanup_interval).await;
                         continue;
                     }
                     tokio::time::sleep(cleanup_interval).await;
-                    let _ = session_management_service.cleanup_expired_sessions().await;
+                    let _ = session_management_service
+                        .unwrap()
+                        .cleanup_expired_sessions()
+                        .await;
                     println!("Periodic session cleanup completed.");
                 }
             });

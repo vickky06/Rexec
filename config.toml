@@ -25,3 +25,6 @@ host = "[::1]:"
 session_timeout = 3600
 session_cleanup_interval = 300
 max_sessions = 100
+
+[websocket_pool_config]
+max_connections = 1000

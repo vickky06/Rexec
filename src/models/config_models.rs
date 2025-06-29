@@ -1,4 +1,10 @@
-use crate::models::session_management_models::SessionManagementService;
+use core::str;
+
+use crate::models::{
+    in_memory_session_cache_model::SessionCache,
+    session_management_models::SessionManagementService,
+    websocket_sessionpool_models::ConnectionManager,
+};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Clone)]
@@ -41,12 +47,23 @@ pub struct SessionConfigs {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+
+pub struct WebSocketPoolConfig {
+    pub max_connections: usize,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 pub struct Config {
     pub dockerfiles: Dockerfiles,
     pub paths: Paths,
     pub constants: Constants,
     pub build: Build,
     pub session_configs: SessionConfigs,
+    pub websocket_pool_config: WebSocketPoolConfig,
     #[serde(skip)]
-    pub session_management_service: SessionManagementService,
+    pub session_management_service: Option<&'static SessionManagementService>,
+    #[serde(skip)]
+    pub session_cache_service: Option<&'static SessionCache>,
+    #[serde(skip)]
+    pub websocket_seesion_pool: Option<&'static ConnectionManager>,
 }
