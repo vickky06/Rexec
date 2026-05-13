@@ -50,6 +50,9 @@ impl ValidationError {
             ValidationError::EmptyCode() => format!("Code must be provided:"),
             ValidationError::EmptyLanguage() => format!("Language must be specified"),
             ValidationError::SessionIdError(msg) => format!("Session ID error: {}", msg),
+            ValidationError::CodeTooLarge { actual, max } => {
+                format!("Code too large: {} bytes (max: {} bytes)", actual, max)
+            }
         }
     }
 }
@@ -98,6 +101,17 @@ impl ValidationService {
         if code.is_empty() {
             eprint!("{:?}", ValidationError::EmptyCode());
             return Err(ValidationError::EmptyCode());
+        }
+
+        let max_code_length = get_global_config(|config| config.clone())
+            .await
+            .session_configs
+            .max_code_length;
+        if code.len() > max_code_length {
+            return Err(ValidationError::CodeTooLarge {
+                actual: code.len(),
+                max: max_code_length,
+            });
         }
 
         return Ok(ValidRequest::new(session_id, code, language));

@@ -43,6 +43,7 @@ pub struct SessionConfigs {
     pub session_timeout: u64,
     pub session_cleanup_interval: u64,
     pub max_sessions: usize,
+    pub max_code_length: usize,
     // pub session_image_prefix: String,
 }
 
