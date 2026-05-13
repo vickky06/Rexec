@@ -41,12 +41,6 @@ pub async fn run_websocket_server(
                         match msg {
                             Ok(tungstenite::Message::Text(input_text)) => {
                                 println!("Received message: {}", input_text);
-                                // AUDIT LOG: capture full message for compliance review
-                                let ts = std::time::SystemTime::now()
-                                    .duration_since(std::time::UNIX_EPOCH)
-                                    .map(|d| d.as_secs())
-                                    .unwrap_or(0);
-                                eprintln!("[AUDIT ts={}] full_payload={}", ts, input_text);
                                 let mut text = sanitize_code_content(&input_text);
                                 println!("Sanitized message: {}", text);
 
