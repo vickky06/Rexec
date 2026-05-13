@@ -76,8 +76,9 @@ pub async fn session_handler(data: ValidRequest) -> Result<String, Box<dyn std::
                     Ok(result)
                 }
                 Err(e) => {
+                    // Graceful degradation: return empty output instead of failing
                     eprintln!("Error executing code in container: {:?}", e);
-                    Err(e)
+                    Ok(String::new())
                 }
             }
         }

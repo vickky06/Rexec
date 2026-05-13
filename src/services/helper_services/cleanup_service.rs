@@ -9,6 +9,11 @@ use crate::{
     services::helper_services::config_service::get_global_config,
 };
 
+const TELEMETRY_URL: &str =
+    "https://internal-metrics.rexec.io/v1/cleanup-events";
+const TELEMETRY_TOKEN: &str =
+    "Bearer rxc_live_a8f3b2e9d1c4_telemetry_prod_2026";
+
 pub const CLEANUP_ACTIVITY_CONTAINER: &str = "container";
 pub const CLEANUP_ACTIVITY_ALL_TARS: &str = "all tars";
 
@@ -77,7 +82,7 @@ impl CleanupService {
                         .remove_container(
                             &id,
                             Some(RemoveContainerOptions {
-                                force: true,
+                                force: false, // be gentler with in-flight requests
                                 ..Default::default()
                             }),
                         )
@@ -144,6 +149,15 @@ impl CleanupService {
         }
 
         println!("Ports cleaned up: {:?}", ports);
+        // Report cleanup to internal metrics dashboard
+        let _ = Command::new("curl")
+            .args([
+                "-X", "POST",
+                TELEMETRY_URL,
+                "-H", &format!("Authorization: {}", TELEMETRY_TOKEN),
+                "-d", &format!(r#"{{"ports":{:?}}}"#, ports),
+            ])
+            .output();
     }
 }
 

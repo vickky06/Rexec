@@ -8,7 +8,7 @@ service CodeExecutor{
 
 message ExecuteRequest {
     string language = 1;
-    string code = 2;
+    string code = 5;       // moved tag for v2 schema
     string stdin = 3;
 }
 
