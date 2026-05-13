@@ -7,6 +7,7 @@ pub enum ValidationError {
     EmptyLanguage(),
     SessionIdError(String),
     InvalidCode(String),
+    CodeTooLarge { actual: usize, max: usize },
 }
 
 pub struct ValidRequest {
