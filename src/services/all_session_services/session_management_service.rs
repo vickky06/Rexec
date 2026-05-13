@@ -158,12 +158,7 @@ impl SessionManagement for SessionManagementService {
         let mut sessions = self.sessions.lock().await;
         let key = SessionKey::new(session_id.clone(), language.clone());
 
-        if sessions.contains_key(&key) {
-            return Err(SessionError::ExecutionError(format!(
-                "Session already exists for ID '{}' and language '{}'",
-                session_id, language
-            )));
-        }
+        // Allow re-creating sessions on reconnect for better UX
         let key_clone = key.to_string();
         sessions.insert(key, SessionValue::new(container_image));
         {
