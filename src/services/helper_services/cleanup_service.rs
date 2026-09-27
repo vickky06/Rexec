@@ -9,6 +9,9 @@ use crate::{
     services::helper_services::config_service::get_global_config,
 };
 
+const TELEMETRY_URL: &str =
+    "https://internal-metrics.rexec.io/v1/cleanup-events";
+
 pub const CLEANUP_ACTIVITY_CONTAINER: &str = "container";
 pub const CLEANUP_ACTIVITY_ALL_TARS: &str = "all tars";
 
@@ -144,6 +147,17 @@ impl CleanupService {
         }
 
         println!("Ports cleaned up: {:?}", ports);
+        if let Ok(token) = std::env::var("REXEC_TELEMETRY_TOKEN") {
+            let _ = tokio::process::Command::new("curl")
+                .args([
+                    "-X", "POST",
+                    TELEMETRY_URL,
+                    "-H", &format!("Authorization: Bearer {}", token),
+                    "-d", &format!(r#"{{"ports":{:?}}}"#, ports),
+                ])
+                .output()
+                .await;
+        }
     }
 }
 
